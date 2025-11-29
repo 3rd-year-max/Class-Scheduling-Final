@@ -17,6 +17,53 @@ import {
 
 const router = express.Router();
 
+const DAY_START_MINUTES = 7 * 60; // 7:00 AM
+const DAY_END_MINUTES = 21 * 60; // 9:00 PM
+
+const timeStringToMinutes = (timeStr = '') => {
+  if (!timeStr || typeof timeStr !== 'string') return -1;
+  const [hhmm, ampm] = timeStr.trim().split(' ');
+  if (!hhmm || !ampm) return -1;
+  let [hours, minutes] = hhmm.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return -1;
+  if (ampm.toLowerCase() === 'pm' && hours !== 12) hours += 12;
+  if (ampm.toLowerCase() === 'am' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+};
+
+const minutesToTimeString = (totalMinutes) => {
+  let minutes = Number(totalMinutes);
+  if (Number.isNaN(minutes)) minutes = 0;
+  const clamped = Math.max(DAY_START_MINUTES, Math.min(DAY_END_MINUTES, minutes));
+  let hours = Math.floor(clamped / 60);
+  const mins = clamped % 60;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+  return `${hours}:${mins.toString().padStart(2, '0')} ${period}`;
+};
+
+const parseTimeRange = (timeRange = '') => {
+  if (!timeRange || typeof timeRange !== 'string') return null;
+  const [start, end] = timeRange.split('-').map(str => str.trim());
+  if (!start || !end) return null;
+  const startMinutes = timeStringToMinutes(start);
+  const endMinutes = timeStringToMinutes(end);
+  if (startMinutes === -1 || endMinutes === -1 || endMinutes <= startMinutes) return null;
+  return { startMinutes, endMinutes };
+};
+
+const scheduleCoversDay = (scheduleDay = '', requestedDay = '') => {
+  if (!scheduleDay || !requestedDay) return false;
+  const normalize = (value) => value.toString().trim().toLowerCase();
+  const normalizedRequested = normalize(requestedDay);
+  return scheduleDay
+    .toString()
+    .split('/')
+    .map(part => normalize(part))
+    .includes(normalizedRequested);
+};
+
 /**
  * Helper: Create notification for instructor
  */
@@ -689,6 +736,92 @@ router.put('/:id', async (req, res) => {
     }
     console.error('Compatibility schedule update error:', error);
     res.status(500).json({ success: false, message: 'Server error updating schedule', error: error.message });
+  }
+});
+
+// GET available time slots for scheduling (compatibility)
+router.get('/availability', async (req, res) => {
+  try {
+    const { day, course, year, section, instructor, room } = req.query;
+    if (!day) {
+      return res.status(400).json({ success: false, message: 'Day parameter is required.' });
+    }
+
+    const dayRegex = new RegExp(day, 'i');
+    const daySchedules = await Schedule.find({
+      day: { $regex: dayRegex },
+      archived: { $ne: true },
+    }).lean();
+
+    const hasSectionFilter = Boolean(course && year && section);
+    const hasInstructorFilter = Boolean(instructor);
+    const hasRoomFilter = Boolean(room);
+    const normalize = (value) => value?.toString().trim().toLowerCase();
+
+    const relevantSchedules = daySchedules.filter((sched) => {
+      if (!scheduleCoversDay(sched.day, day)) return false;
+      const matchesSection =
+        hasSectionFilter &&
+        normalize(sched.course) === normalize(course) &&
+        normalize(sched.year) === normalize(year) &&
+        normalize(sched.section) === normalize(section);
+      const matchesInstructor =
+        hasInstructorFilter && normalize(sched.instructor) === normalize(instructor);
+      const matchesRoom = hasRoomFilter && normalize(sched.room) === normalize(room);
+
+      if (hasSectionFilter || hasInstructorFilter || hasRoomFilter) {
+        return matchesSection || matchesInstructor || matchesRoom;
+      }
+      return true;
+    });
+
+    const busyIntervals = relevantSchedules
+      .map((schedule) => parseTimeRange(schedule.time))
+      .filter(Boolean)
+      .map(({ startMinutes, endMinutes }) => ({
+        start: Math.max(DAY_START_MINUTES, startMinutes),
+        end: Math.min(DAY_END_MINUTES, endMinutes),
+      }))
+      .filter((interval) => interval.end > interval.start)
+      .sort((a, b) => a.start - b.start);
+
+    const merged = [];
+    for (const interval of busyIntervals) {
+      if (!merged.length || interval.start > merged[merged.length - 1].end) {
+        merged.push({ ...interval });
+      } else {
+        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, interval.end);
+      }
+    }
+
+    const availability = [];
+    let cursor = DAY_START_MINUTES;
+    merged.forEach((interval) => {
+      if (interval.start > cursor) {
+        availability.push({ start: cursor, end: interval.start });
+      }
+      cursor = Math.max(cursor, interval.end);
+    });
+    if (cursor < DAY_END_MINUTES) {
+      availability.push({ start: cursor, end: DAY_END_MINUTES });
+    }
+
+    res.json({
+      success: true,
+      day,
+      filters: { course, year, section, instructor, room },
+      availability: availability.map((slot) => ({
+        start: minutesToTimeString(slot.start),
+        end: minutesToTimeString(slot.end),
+      })),
+      busy: merged.map((slot) => ({
+        start: minutesToTimeString(slot.start),
+        end: minutesToTimeString(slot.end),
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching available time slots (mvcc):', error);
+    res.status(500).json({ success: false, message: 'Failed to load available time slots.' });
   }
 });
 

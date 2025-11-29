@@ -334,18 +334,47 @@ const ActivityLogs = () => {
       <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
         <Header title="Activity Logs" />
         <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Header Section - WHITE TEXT */}
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-              <FontAwesomeIcon icon={faClipboardList} style={{ fontSize: 28, color: '#ffffff' }} />
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#ffffff' }}>
-                Activity Logs
-              </h2>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
-              <p style={{ margin: 0, color: '#ffffff', fontSize: '14px' }}>
-                View all system activities and changes
-              </p>
+          {/* Header Section */}
+          <div style={{ 
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            padding: '20px 24px',
+            borderRadius: '16px',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-10%',
+              width: '200px',
+              height: '200px',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none'
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px', position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                }}>
+                  <FontAwesomeIcon icon={faClipboardList} style={{ fontSize: 28, color: '#fff' }} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#ffffff', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>
+                    Activity Logs
+                  </h2>
+                  <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>
+                    View all system activities and changes
+                  </p>
+                </div>
+              </div>
               {filteredAlerts.length > 0 && (
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button

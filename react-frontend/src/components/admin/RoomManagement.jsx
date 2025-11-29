@@ -173,30 +173,6 @@ const RoomManagement = () => {
     }
   };
 
-  const handleDeleteRoomPermanent = (room) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Delete Room Permanently',
-      message: `Are you sure you want to permanently delete room "${room.room}"? This action cannot be undone.`,
-      onConfirm: async () => {
-        try {
-          const res = await apiClient.delete(`/api/rooms/${room._id}/permanent`);
-          if (res.data.success) {
-            showToast('Room deleted permanently!', 'success');
-            fetchRooms();
-            fetchArchivedRooms();
-          } else {
-            showToast(res.data.message || 'Failed to delete room', 'error');
-          }
-        } catch (err) {
-          console.error('Delete room failed:', err);
-          showToast('Server error while deleting room.', 'error');
-        }
-        setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false });
-      },
-      destructive: true,
-    });
-  };
 
   const fetchArchivedRooms = async () => {
     setLoadingArchived(true);
@@ -283,55 +259,101 @@ const RoomManagement = () => {
 
           <div className="dashboard-content" style={{ marginTop: '140px' }}>
             {/* Welcome Section */}
-            <div className="welcome-section" style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                <FontAwesomeIcon 
-                  icon={faDoorOpen} 
-                  style={{ fontSize: 32, color: '#f97316' }}
-                />
-                <h2 style={{ margin: 0 }}>Room Management</h2>
+            <div className="welcome-section" style={{ 
+              marginBottom: '24px',
+              background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+              padding: '20px 24px',
+              borderRadius: '16px',
+              boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-50%',
+                right: '-10%',
+                width: '200px',
+                height: '200px',
+                background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+                borderRadius: '50%',
+                pointerEvents: 'none'
+              }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                }}>
+                  <FontAwesomeIcon 
+                    icon={faDoorOpen} 
+                    style={{ fontSize: 28, color: '#fff' }}
+                  />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: '700', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>Room Management</h2>
+                  <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>Manage classrooms and computer laboratories efficiently</p>
+                </div>
               </div>
-              <p style={{ margin: 0 }}>Manage classrooms and computer laboratories</p>
             </div>
 
             {/* Stats and Actions Card */}
             <div style={{
-              background: '#fff',
-              padding: '24px',
-              borderRadius: '18px',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              borderLeft: '5px solid #f97316',
-              marginBottom: '24px',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              padding: '20px 24px',
+              borderRadius: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+              borderLeft: '4px solid #f97316',
+              marginBottom: '20px',
+              border: '1px solid rgba(15, 44, 99, 0.1)',
+              position: 'relative',
+              overflow: 'hidden'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '4px',
+                height: '100%',
+                background: 'linear-gradient(180deg, #f97316 0%, #ea580c 100%)',
+              }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                 <div>
-                  <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
                     Rooms Overview
                   </h3>
-                  <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
+                  <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0 0', fontWeight: '500' }}>
                     Total: {rooms.length} room(s)
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
                   <button
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      padding: '12px 20px',
+                      padding: '10px 18px',
                       background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '10px',
                       cursor: 'pointer',
-                      fontSize: '15px',
+                      fontSize: '13px',
                       fontWeight: '600',
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
                     }}
                     onClick={addRoom}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
+                    }}
                   >
                     <FontAwesomeIcon icon={faPlus} />
                     Add Room
@@ -342,21 +364,26 @@ const RoomManagement = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
-                      padding: '12px 20px',
-                      background: '#f3f4f6',
+                      padding: '10px 18px',
+                      background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                       color: '#374151',
-                      border: '1px solid #e5e7eb',
+                      border: '1px solid #d1d5db',
                       borderRadius: '10px',
                       cursor: 'pointer',
-                      fontSize: '15px',
+                      fontSize: '13px',
                       fontWeight: '600',
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
                     }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = '#e5e7eb';
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
                     }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = '#f3f4f6';
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                     }}
                   >
                     <FontAwesomeIcon icon={faArchive} />
@@ -366,19 +393,33 @@ const RoomManagement = () => {
               </div>
 
               {/* Filters */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '18px', flexWrap: 'wrap' }}>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   style={{
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
                     borderRadius: '10px',
-                    fontSize: '15px',
-                    fontWeight: '500',
+                    fontSize: '13px',
+                    fontWeight: '600',
                     cursor: 'pointer',
                     minWidth: '160px',
-                    background: '#fff'
+                    background: '#fff',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    outline: 'none',
+                    color: '#1e293b'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 >
                   <option value="all">All Status</option>
@@ -389,14 +430,28 @@ const RoomManagement = () => {
                   value={areaFilter}
                   onChange={(e) => setAreaFilter(e.target.value)}
                   style={{
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
                     borderRadius: '10px',
-                    fontSize: '15px',
-                    fontWeight: '500',
+                    fontSize: '13px',
+                    fontWeight: '600',
                     cursor: 'pointer',
                     minWidth: '160px',
-                    background: '#fff'
+                    background: '#fff',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    outline: 'none',
+                    color: '#1e293b'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 >
                   <option value="all">All Areas</option>
@@ -411,14 +466,28 @@ const RoomManagement = () => {
                     setSortConfig({ key, direction });
                   }}
                   style={{
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
                     borderRadius: '10px',
-                    fontSize: '15px',
-                    fontWeight: '500',
+                    fontSize: '13px',
+                    fontWeight: '600',
                     cursor: 'pointer',
                     minWidth: '160px',
-                    background: '#fff'
+                    background: '#fff',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    outline: 'none',
+                    color: '#1e293b'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 >
                   <option value="room-asc">Sort: Room (A-Z)</option>
@@ -467,8 +536,8 @@ const RoomManagement = () => {
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '24px',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: '20px',
               }}>
                 {filteredRooms.map((room) => {
                   const statusColors = getStatusColor(room.status);
@@ -477,49 +546,58 @@ const RoomManagement = () => {
                       key={room._id}
                       onClick={() => navigateToRoomDetails(room)}
                       style={{
-                        background: '#fff',
-                        borderRadius: '16px',
-                        padding: '24px',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-                        border: '2px solid #f1f5f9',
+                        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                        borderRadius: '14px',
+                        padding: '20px',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+                        border: '1px solid rgba(15, 44, 99, 0.1)',
                         cursor: 'pointer',
-                        transition: 'all 0.3s ease',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         position: 'relative',
                         overflow: 'hidden',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.12)';
+                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(37, 99, 235, 0.2)';
                         e.currentTarget.style.borderColor = '#3b82f6';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                        e.currentTarget.style.borderColor = '#f1f5f9';
+                        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(15, 44, 99, 0.1)';
                       }}
                     >
                       <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '4px',
+                        height: '100%',
+                        background: `linear-gradient(180deg, ${statusColors.border} 0%, ${statusColors.border}dd 100%)`,
+                      }} />
+                      <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '16px',
-                        marginBottom: '16px'
+                        gap: '14px',
+                        marginBottom: '14px'
                       }}>
                         <div style={{
-                          width: '56px',
-                          height: '56px',
+                          width: '48px',
+                          height: '48px',
                           borderRadius: '12px',
                           background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           color: 'white',
-                          fontSize: '24px',
+                          fontSize: '20px',
+                          boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)'
                         }}>
                           <FontAwesomeIcon icon={faDesktop} />
                         </div>
                         <div style={{ flex: 1 }}>
                           <h4 style={{
-                            fontSize: '18px',
+                            fontSize: '16px',
                             fontWeight: '700',
                             color: '#1e293b',
                             margin: '0 0 4px 0',
@@ -527,9 +605,10 @@ const RoomManagement = () => {
                             {formatRoomLabel(room.room)}
                           </h4>
                           <p style={{
-                            fontSize: '14px',
+                            fontSize: '13px',
                             color: '#64748b',
                             margin: 0,
+                            fontWeight: '500'
                           }}>
                             {room.area}
                           </p>
@@ -539,27 +618,28 @@ const RoomManagement = () => {
                       <div style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 16px',
+                        gap: '6px',
+                        padding: '6px 12px',
                         borderRadius: '8px',
                         backgroundColor: statusColors.bg,
                         color: statusColors.text,
                         border: `2px solid ${statusColors.border}`,
-                        fontWeight: '600',
-                        fontSize: '13px',
+                        fontWeight: '700',
+                        fontSize: '12px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
+                        boxShadow: `0 2px 8px ${statusColors.border}33`
                       }}>
-                        <FontAwesomeIcon icon={getStatusIcon(room.status)} style={{ fontSize: '14px' }} />
+                        <FontAwesomeIcon icon={getStatusIcon(room.status)} style={{ fontSize: '12px' }} />
                         {room.status}
                       </div>
 
                       <div style={{
                         position: 'absolute',
-                        top: '16px',
-                        right: '16px',
+                        top: '14px',
+                        right: '14px',
                         display: 'flex',
-                        gap: '8px',
+                        gap: '6px',
                       }}>
                         <button
                           onClick={(e) => {
@@ -567,29 +647,32 @@ const RoomManagement = () => {
                             navigateToRoomDetails(room);
                           }}
                           style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            border: 'none',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.15) 100%)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: '#3b82f6',
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 2px 6px rgba(59, 130, 246, 0.15)'
                           }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.25) 100%)';
                             e.currentTarget.style.transform = 'scale(1.1)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
                           }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.15) 100%)';
                             e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 2px 6px rgba(59, 130, 246, 0.15)';
                           }}
                           title="Edit Room"
                         >
-                          <FontAwesomeIcon icon={faEdit} style={{ fontSize: '14px' }} />
+                          <FontAwesomeIcon icon={faEdit} style={{ fontSize: '13px' }} />
                         </button>
                         <button
                           onClick={(e) => {
@@ -597,29 +680,32 @@ const RoomManagement = () => {
                             handleArchiveRoom(room);
                           }}
                           style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            background: 'rgba(251, 146, 60, 0.1)',
-                            border: 'none',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.15) 100%)',
+                            border: '1px solid rgba(251, 146, 60, 0.2)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: '#f97316',
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 2px 6px rgba(251, 146, 60, 0.15)'
                           }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(251, 146, 60, 0.2)';
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(249, 115, 22, 0.25) 100%)';
                             e.currentTarget.style.transform = 'scale(1.1)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 146, 60, 0.25)';
                           }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(251, 146, 60, 0.1)';
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.15) 100%)';
                             e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 2px 6px rgba(251, 146, 60, 0.15)';
                           }}
                           title="Archive Room"
                         >
-                          <FontAwesomeIcon icon={faArchive} style={{ fontSize: '14px' }} />
+                          <FontAwesomeIcon icon={faArchive} style={{ fontSize: '13px' }} />
                         </button>
                       </div>
                     </div>
@@ -651,17 +737,27 @@ const RoomManagement = () => {
         >
           <div
             style={{
-              background: 'white',
-              padding: '32px',
-              borderRadius: '18px',
-              width: '480px',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              padding: '24px',
+              borderRadius: '16px',
+              width: '460px',
               maxWidth: '90vw',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(15, 44, 99, 0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '22px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Add New Room</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ 
+                fontSize: '20px', 
+                fontWeight: '700', 
+                color: '#0f2c63', 
+                margin: 0,
+                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>Add New Room</h3>
               <button
                 onClick={() => setShowAddRoomPopup(false)}
                 style={{
@@ -678,11 +774,11 @@ const RoomManagement = () => {
             </div>
 
             <form onSubmit={handleAddRoomSubmit}>
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <label style={{ 
                   display: 'block', 
-                  marginBottom: '8px',
-                  fontSize: '14px',
+                  marginBottom: '6px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#374151'
                 }}>
@@ -696,22 +792,33 @@ const RoomManagement = () => {
                   placeholder="e.g., ComLab 1"
                   style={{ 
                     width: '100%', 
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    fontSize: '15px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
                     outline: 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
                 />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <label style={{ 
                   display: 'block', 
-                  marginBottom: '8px',
-                  fontSize: '14px',
+                  marginBottom: '6px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#374151'
                 }}>
@@ -725,22 +832,33 @@ const RoomManagement = () => {
                   placeholder="e.g., 3rd Floor, Main Building"
                   style={{ 
                     width: '100%', 
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    fontSize: '15px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
                     outline: 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
                 />
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ 
                   display: 'block', 
-                  marginBottom: '8px',
-                  fontSize: '14px',
+                  marginBottom: '6px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#374151'
                 }}>
@@ -751,11 +869,25 @@ const RoomManagement = () => {
                   onChange={(e) => updateNewRoomField('status', e.target.value)}
                   style={{ 
                     width: '100%', 
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    fontSize: '15px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
                     cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                   required
                 >
@@ -764,19 +896,31 @@ const RoomManagement = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setShowAddRoomPopup(false)}
                   style={{ 
-                    padding: '12px 24px',
+                    padding: '10px 20px',
                     border: '2px solid #e5e7eb',
-                    background: 'white',
-                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                    borderRadius: '8px',
                     cursor: 'pointer',
-                    fontSize: '15px',
+                    fontSize: '13px',
                     fontWeight: '600',
                     color: '#374151',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f3f4f6';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                   }}
                 >
                   Cancel
@@ -785,14 +929,27 @@ const RoomManagement = () => {
                   type="submit"
                   disabled={addLoading}
                   style={{ 
-                    padding: '12px 24px',
+                    padding: '10px 20px',
                     background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '10px',
+                    borderRadius: '8px',
                     cursor: addLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '15px',
+                    fontSize: '13px',
                     fontWeight: '600',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
+                    opacity: addLoading ? 0.7 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!addLoading) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.4)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
                   }}
                 >
                   {addLoading ? 'Adding...' : 'Add Room'}
@@ -823,17 +980,27 @@ const RoomManagement = () => {
         >
           <div
             style={{
-              background: 'white',
-              padding: '32px',
-              borderRadius: '18px',
-              width: '480px',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              padding: '24px',
+              borderRadius: '16px',
+              width: '460px',
               maxWidth: '90vw',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(15, 44, 99, 0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '22px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Edit Room Details</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ 
+                fontSize: '20px', 
+                fontWeight: '700', 
+                color: '#0f2c63', 
+                margin: 0,
+                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>Edit Room Details</h3>
               <button
                 onClick={() => setShowEditRoomPopup(false)}
                 style={{
@@ -850,11 +1017,11 @@ const RoomManagement = () => {
             </div>
 
             <form onSubmit={handleEditRoomSubmit}>
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <label style={{ 
                   display: 'block', 
-                  marginBottom: '8px',
-                  fontSize: '14px',
+                  marginBottom: '6px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#374151'
                 }}>
@@ -867,22 +1034,33 @@ const RoomManagement = () => {
                   required
                   style={{ 
                     width: '100%', 
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    fontSize: '15px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
                     outline: 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
                 />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <label style={{ 
                   display: 'block', 
-                  marginBottom: '8px',
-                  fontSize: '14px',
+                  marginBottom: '6px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#374151'
                 }}>
@@ -895,22 +1073,33 @@ const RoomManagement = () => {
                   required
                   style={{ 
                     width: '100%', 
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    fontSize: '15px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
                     outline: 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
                 />
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ 
                   display: 'block', 
-                  marginBottom: '8px',
-                  fontSize: '14px',
+                  marginBottom: '6px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#374151'
                 }}>
@@ -921,11 +1110,25 @@ const RoomManagement = () => {
                   onChange={(e) => updateSelectedRoomField('status', e.target.value)}
                   style={{ 
                     width: '100%', 
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    fontSize: '15px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
                     cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                   required
                 >
@@ -934,19 +1137,31 @@ const RoomManagement = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setShowEditRoomPopup(false)}
                   style={{ 
-                    padding: '12px 24px',
+                    padding: '10px 20px',
                     border: '2px solid #e5e7eb',
-                    background: 'white',
-                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                    borderRadius: '8px',
                     cursor: 'pointer',
-                    fontSize: '15px',
+                    fontSize: '13px',
                     fontWeight: '600',
                     color: '#374151',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f3f4f6';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                   }}
                 >
                   Cancel
@@ -955,14 +1170,27 @@ const RoomManagement = () => {
                   type="submit"
                   disabled={editLoading}
                   style={{ 
-                    padding: '12px 24px',
+                    padding: '10px 20px',
                     background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '10px',
+                    borderRadius: '8px',
                     cursor: editLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '15px',
+                    fontSize: '13px',
                     fontWeight: '600',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
+                    opacity: editLoading ? 0.7 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!editLoading) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.4)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
                   }}
                 >
                   {editLoading ? 'Saving...' : 'Save Changes'}
@@ -1013,7 +1241,6 @@ const RoomManagement = () => {
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => handleRestoreRoom(r)} style={{ padding: '8px 12px', background: 'linear-gradient(90deg,#059669,#047857)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Restore</button>
-                        <button onClick={() => handleDeleteRoomPermanent(r)} style={{ padding: '8px 12px', background: '#ffe4e6', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer' }}>Delete Permanently</button>
                       </div>
                     </div>
                   ))}

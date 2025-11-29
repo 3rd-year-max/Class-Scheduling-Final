@@ -9,7 +9,8 @@ import {
   faArchive,
   faTimes,
   faUsers,
-  faExclamationCircle
+  faExclamationCircle,
+  faLayerGroup
 } from '@fortawesome/free-solid-svg-icons';
 import apiClient from '../../services/apiClient.js';
 import { useToast } from '../common/ToastProvider.jsx';
@@ -43,6 +44,8 @@ const SectionManagement = () => {
       shortName: 'BSIT',
       icon: faGraduationCap,
       gradient: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+      bgGradient: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%)',
+      color: '#0f2c63',
     },
     {
       id: 'bsemc-dat',
@@ -50,6 +53,8 @@ const SectionManagement = () => {
       shortName: 'BSEMC-DAT',
       icon: faCode,
       gradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+      bgGradient: 'linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fb923c 100%)',
+      color: '#f97316',
     }
   ];
 
@@ -136,25 +141,6 @@ const SectionManagement = () => {
     }
   };
 
-  const handleDeleteSectionPermanent = (section) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Delete Section Permanently',
-      message: `Are you sure you want to permanently delete section "${section.name}" and all its associated schedules? This cannot be undone.`,
-      onConfirm: async () => {
-        try {
-          await apiClient.delete(`/api/sections/${section._id}/permanent`);
-          showToast('Section deleted permanently', 'success');
-          fetchSections();
-          setArchivedSections(archivedSections.filter(s => s._id !== section._id));
-        } catch {
-          showToast('Failed to delete section', 'error');
-        }
-      },
-      destructive: true
-    });
-  };
-
   const handleRestoreSection = async (section) => {
       try {
         await apiClient.patch(`/api/sections/${section._id}/restore`);
@@ -203,8 +189,10 @@ const SectionManagement = () => {
           await apiClient.patch(`/api/sections/${section._id}/archive`);
           showToast('Section archived successfully', 'success');
           fetchSections();
+          setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false });
         } catch {
           showToast('Failed to archive section', 'error');
+          setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false });
         }
       },
       destructive: false
@@ -214,36 +202,93 @@ const SectionManagement = () => {
   const currentCourse = courses.find(c => c.id === selectedCourse);
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
       <Sidebar />
       <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
         <Header title="Section Management" />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Welcome Section */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <FontAwesomeIcon 
-                icon={faUsers} 
-                style={{ fontSize: 32, color: '#f97316' }}
-              />
-              <h2 style={{ margin: 0 }}>Section Management</h2>
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
+          {/* Enhanced Welcome Section */}
+          <div style={{
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            color: '#ffffff',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-10%',
+              width: '200px',
+              height: '200px',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none'
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}>
+                <FontAwesomeIcon icon={faUsers} style={{ fontSize: 28, color: '#fff' }} />
+              </div>
+              <div>
+                <h2 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+                }}>
+                  Section Management
+                </h2>
+                <p style={{
+                  margin: '6px 0 0 0',
+                  fontSize: '14px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: '500',
+                }}>
+                  Select a course and year level to create, manage, and organize student sections
+                </p>
+              </div>
             </div>
-            <p style={{ margin: 0 }}>Select a course and year level to manage sections</p>
           </div>
 
-          {/* Course Selection */}
+          {/* Enhanced Course Selection */}
           <div style={{
-            background: '#fff',
+            background: '#ffffff',
             padding: '24px',
-            borderRadius: '18px',
+            borderRadius: '20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-            borderLeft: '5px solid #f97316',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
             marginBottom: '24px',
+            position: 'relative',
+            overflow: 'hidden',
           }}>
-            <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+            }} />
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '800',
+              color: '#1e293b',
+              marginBottom: '20px',
+              letterSpacing: '-0.3px',
+            }}>
               Select Course
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
               {courses.map((course) => (
                 <button
                   key={course.id}
@@ -253,45 +298,84 @@ const SectionManagement = () => {
                     setSections([]);
                   }}
                   style={{
-                    padding: '24px 28px',
-                    background: selectedCourse === course.id ? course.gradient : '#f9fafb',
+                    padding: '22px',
+                    background: selectedCourse === course.id ? course.gradient : '#ffffff',
                     color: selectedCourse === course.id ? 'white' : '#374151',
                     border: selectedCourse === course.id ? 'none' : '2px solid #e5e7eb',
-                    borderRadius: '14px',
+                    borderRadius: '18px',
                     cursor: 'pointer',
                     fontWeight: '600',
-                    fontSize: '18px',
+                    fontSize: '15px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-start',
-                    gap: '12px',
-                    transition: 'all 0.3s ease',
+                    gap: '14px',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     textAlign: 'left',
+                    boxShadow: selectedCourse === course.id 
+                      ? `0 8px 24px ${course.color}30` 
+                      : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
                   onMouseOver={(e) => {
                     if (selectedCourse !== course.id) {
-                      e.currentTarget.style.background = '#f3f4f6';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.12)';
+                      e.currentTarget.style.borderColor = '#d1d5db';
                     }
                   }}
                   onMouseOut={(e) => {
                     if (selectedCourse !== course.id) {
-                      e.currentTarget.style.background = '#f9fafb';
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
                     }
                   }}
                 >
-                  <FontAwesomeIcon icon={course.icon} style={{ fontSize: 32 }} />
+                  {selectedCourse === course.id && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-20px',
+                      right: '-20px',
+                      width: '80px',
+                      height: '80px',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: '50%',
+                      filter: 'blur(20px)',
+                    }} />
+                  )}
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '14px',
+                    background: selectedCourse === course.id 
+                      ? 'rgba(255, 255, 255, 0.2)' 
+                      : course.gradient,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    boxShadow: selectedCourse === course.id 
+                      ? '0 4px 12px rgba(0, 0, 0, 0.1)' 
+                      : `0 4px 12px ${course.color}20`,
+                  }}>
+                    <FontAwesomeIcon icon={course.icon} />
+                  </div>
                   <div>
-                    <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>
+                    <div style={{
+                      fontSize: '18px',
+                      fontWeight: '800',
+                      marginBottom: '4px',
+                      letterSpacing: '-0.3px',
+                    }}>
                       {course.shortName}
                     </div>
-                    <div style={{ 
-                      fontSize: '13px', 
-                      opacity: 0.8,
-                      fontWeight: '400' 
+                    <div style={{
+                      fontSize: '13px',
+                      opacity: selectedCourse === course.id ? 0.9 : 0.7,
+                      fontWeight: '400',
+                      lineHeight: '1.4',
                     }}>
                       {course.name}
                     </div>
@@ -301,23 +385,39 @@ const SectionManagement = () => {
             </div>
           </div>
 
-          {/* Year Level Selection - Only shows when course is selected */}
+          {/* Enhanced Year Level Selection */}
           {selectedCourse && (
             <div style={{
-              background: '#fff',
+              background: '#ffffff',
               padding: '24px',
-              borderRadius: '18px',
+              borderRadius: '20px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              borderLeft: '5px solid #f97316',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
               marginBottom: '24px',
+              position: 'relative',
+              overflow: 'hidden',
             }}>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: currentCourse?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+              }} />
+              <h3 style={{
+                fontSize: '20px',
+                fontWeight: '800',
+                color: '#1e293b',
+                marginBottom: '20px',
+                letterSpacing: '-0.3px',
+              }}>
                 Select Year Level
               </h3>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-                gap: '16px' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: '16px'
               }}>
                 {yearLevels.map((year) => (
                   <button
@@ -328,190 +428,298 @@ const SectionManagement = () => {
                       background: selectedYear === year.id ? currentCourse.gradient : '#f9fafb',
                       color: selectedYear === year.id ? 'white' : '#374151',
                       border: selectedYear === year.id ? 'none' : '2px solid #e5e7eb',
-                      borderRadius: '12px',
+                      borderRadius: '14px',
                       cursor: 'pointer',
-                      fontWeight: '600',
+                      fontWeight: '700',
                       fontSize: '16px',
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       textAlign: 'center',
+                      boxShadow: selectedYear === year.id
+                        ? `0 8px 24px ${currentCourse?.color || '#f97316'}30`
+                        : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
                     onMouseOver={(e) => {
                       if (selectedYear !== year.id) {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.1)';
                         e.currentTarget.style.background = '#f3f4f6';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
                       }
                     }}
                     onMouseOut={(e) => {
                       if (selectedYear !== year.id) {
-                        e.currentTarget.style.background = '#f9fafb';
                         e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+                        e.currentTarget.style.background = '#f9fafb';
                       }
                     }}
                   >
-                    {year.label}
+                    {selectedYear === year.id && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-20px',
+                        right: '-20px',
+                        width: '70px',
+                        height: '70px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '50%',
+                        filter: 'blur(20px)',
+                      }} />
+                    )}
+                    <div style={{
+                      fontSize: '28px',
+                      fontWeight: '800',
+                      marginBottom: '6px',
+                    }}>
+                      {year.year}
+                    </div>
+                    <div style={{
+                      fontSize: '13px',
+                      opacity: selectedYear === year.id ? 0.95 : 0.7,
+                    }}>
+                      {year.label}
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Sections List - Only shows when both course and year are selected */}
+          {/* Enhanced Sections List */}
           {selectedCourse && selectedYear && (
             <div style={{
-              background: '#fff',
+              background: '#ffffff',
               padding: '24px',
-              borderRadius: '18px',
+              borderRadius: '20px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              borderLeft: '5px solid #f97316',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
             }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: currentCourse?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+              }} />
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '20px'
+                marginBottom: '20px',
+                paddingTop: '8px',
               }}>
-                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                  Sections for {courses.find(c => c.id === selectedCourse)?.shortName} - {selectedYear}
-                </h3>
-                <button
-                  onClick={() => setShowAddSectionPopup(true)}
-                  style={{
-                    padding: '10px 20px',
-                    background: currentCourse.gradient,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <FontAwesomeIcon icon={faPlus} />
-                  Add Section
-                </button>
-                <button
-                  onClick={handleOpenArchivedModal}
-                  style={{
-                    padding: '12px 20px',
-                    background: '#f3f4f6',
-                    color: '#374151',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#e5e7eb';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = '#f3f4f6';
-                  }}
-                >
-                  <FontAwesomeIcon icon={faArchive} />
-                  Archived
-                </button>
+                <div>
+                  <h3 style={{
+                    fontSize: '20px',
+                    fontWeight: '800',
+                    color: '#1e293b',
+                    margin: '0 0 4px 0',
+                    letterSpacing: '-0.3px',
+                  }}>
+                    Sections for {courses.find(c => c.id === selectedCourse)?.shortName} - {yearLevels.find(y => y.id === selectedYear)?.label}
+                  </h3>
+                  <p style={{
+                    fontSize: '13px',
+                    color: '#64748b',
+                    margin: 0,
+                    fontWeight: '500',
+                  }}>
+                    {sections.length} active section(s)
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setShowAddSectionPopup(true)}
+                    style={{
+                      padding: '12px 24px',
+                      background: currentCourse.gradient,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.3s ease',
+                      boxShadow: `0 4px 12px ${currentCourse?.color || '#f97316'}30`,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = `0 6px 16px ${currentCourse?.color || '#f97316'}40`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${currentCourse?.color || '#f97316'}30`;
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faPlus} />
+                    Add Section
+                  </button>
+                  <button
+                    onClick={handleOpenArchivedModal}
+                    style={{
+                      padding: '12px 24px',
+                      background: '#ffffff',
+                      color: '#374151',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f9fafb';
+                      e.currentTarget.style.borderColor = '#d1d5db';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faArchive} />
+                    Archived
+                  </button>
+                </div>
               </div>
 
               {loading ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                  Loading sections...
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 32px',
+                  color: '#64748b',
+                }}>
+                  <FontAwesomeIcon icon={faLayerGroup} style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>Loading sections...</p>
                 </div>
               ) : error ? (
-                <div style={{ 
-                  padding: '24px', 
-                  background: '#fef2f2', 
-                  border: '1px solid #fecaca',
-                  borderRadius: '12px',
+                <div style={{
+                  padding: '20px',
+                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                  border: '2px solid #fecaca',
+                  borderRadius: '14px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
-                  color: '#dc2626'
+                  gap: '14px',
+                  color: '#dc2626',
                 }}>
-                  <FontAwesomeIcon icon={faExclamationCircle} />
-                  <span>{error}</span>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: '#fee2e2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                  }}>
+                    <FontAwesomeIcon icon={faExclamationCircle} />
+                  </div>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{error}</span>
                 </div>
               ) : sections.length === 0 ? (
-                <div style={{ 
-                  padding: '40px', 
-                  textAlign: 'center', 
-                  color: '#64748b' 
+                <div style={{
+                  padding: '40px 32px',
+                  textAlign: 'center',
+                  color: '#64748b',
+                  background: '#f8fafc',
+                  borderRadius: '14px',
+                  border: '2px dashed #e2e8f0',
                 }}>
-                  <FontAwesomeIcon 
-                    icon={faUsers} 
-                    style={{ fontSize: 48, marginBottom: '16px', opacity: 0.5 }}
+                  <FontAwesomeIcon
+                    icon={faUsers}
+                    style={{ fontSize: 48, marginBottom: '16px', opacity: 0.3 }}
                   />
-                  <p style={{ margin: 0, fontSize: '16px' }}>
-                    No sections found. Click "Add Section" to create one.
+                  <p style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700' }}>
+                    No sections found
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', opacity: 0.7 }}>
+                    Click "Add Section" to create one
                   </p>
                 </div>
               ) : (
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-                  gap: '16px' 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: '16px'
                 }}>
                   {sections.map((section) => (
                     <div
                       key={section._id}
                       style={{
-                        padding: '20px',
-                        background: '#f9fafb',
+                        padding: '18px',
+                        background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
                         border: '2px solid #e5e7eb',
-                        borderRadius: '12px',
+                        borderRadius: '16px',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        transition: 'all 0.3s ease',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
                       }}
                       onMouseOver={(e) => {
-                        e.currentTarget.style.background = '#f3f4f6';
-                        e.currentTarget.style.borderColor = '#d1d5db';
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.borderColor = currentCourse?.color || '#3b82f6';
+                        e.currentTarget.style.boxShadow = `0 8px 24px ${currentCourse?.color || '#3b82f6'}20`;
+                        e.currentTarget.style.transform = 'translateY(-4px)';
                       }}
                       onMouseOut={(e) => {
-                        e.currentTarget.style.background = '#f9fafb';
+                        e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)';
                         e.currentTarget.style.borderColor = '#e5e7eb';
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
-                      <span style={{ 
-                        fontSize: '18px', 
-                        fontWeight: '600', 
-                        color: '#1e293b' 
+                      {/* Decorative gradient bar */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '3px',
+                        background: currentCourse?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                      }} />
+                      <div style={{
+                        fontSize: '17px',
+                        fontWeight: '700',
+                        color: '#1e293b',
+                        letterSpacing: '-0.3px',
                       }}>
-                        {section.name}
-                      </span>
+                        {courses.find(c => c.id === selectedCourse)?.shortName}-{yearLevels.find(y => y.id === selectedYear)?.year}{section.name}
+                      </div>
                       <button
                         onClick={() => handleArchiveSection(section)}
                         style={{
                           padding: '8px 12px',
-                          background: '#fef3c7',
+                          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
                           color: '#b45309',
                           border: 'none',
-                          borderRadius: '6px',
+                          borderRadius: '8px',
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease',
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 2px 8px rgba(180, 83, 9, 0.15)',
                         }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.background = '#fde68a';
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #fde68a 0%, #fcd34d 100%)';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(180, 83, 9, 0.25)';
                         }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.background = '#fef3c7';
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)';
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(180, 83, 9, 0.15)';
                         }}
                       >
                         <FontAwesomeIcon icon={faArchive} />
@@ -523,30 +731,52 @@ const SectionManagement = () => {
             </div>
           )}
 
-          {/* Instructions when no course/year selected */}
+          {/* Enhanced Instructions when no course/year selected */}
           {(!selectedCourse || !selectedYear) && (
             <div style={{
-              background: '#fff',
-              padding: '60px 30px',
-              borderRadius: '18px',
+              background: '#ffffff',
+              padding: '40px 32px',
+              borderRadius: '20px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
               textAlign: 'center',
-              borderLeft: '5px solid #f97316',
+              border: '2px dashed #e2e8f0',
             }}>
-              <FontAwesomeIcon 
-                icon={faUsers} 
-                style={{ fontSize: 48, color: '#f97316', marginBottom: '16px' }} 
-              />
-              <h3 style={{ color: '#1e293b', fontSize: '20px', fontWeight: '600', marginBottom: '8px' }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '32px',
+                color: '#b45309',
+                margin: '0 auto 20px',
+                boxShadow: '0 8px 24px rgba(180, 83, 9, 0.15)',
+              }}>
+                <FontAwesomeIcon icon={faUsers} />
+              </div>
+              <h3 style={{
+                color: '#1e293b',
+                fontSize: '20px',
+                fontWeight: '800',
+                marginBottom: '10px',
+                letterSpacing: '-0.3px',
+              }}>
                 Get Started
               </h3>
-              <p style={{ color: '#64748b', fontSize: '16px', margin: 0 }}>
+              <p style={{
+                color: '#64748b',
+                fontSize: '14px',
+                margin: 0,
+                lineHeight: '1.6',
+              }}>
                 Please select a course and year level above to view and manage sections
               </p>
             </div>
           )}
 
-          {/* Archived Sections Modal */}
+          {/* Enhanced Archived Sections Modal */}
           {showArchivedModal && (
             <div style={{
               position: 'fixed',
@@ -555,37 +785,145 @@ const SectionManagement = () => {
               right: 0,
               bottom: 0,
               background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(4px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               zIndex: 10000,
             }}>
-              <div style={{ background: '#fff', borderRadius: 12, width: '92%', maxWidth: 900, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(2,6,23,0.3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', borderBottom: '1px solid #eef2ff' }}>
+              <div style={{
+                background: '#fff',
+                borderRadius: '20px',
+                width: '90%',
+                maxWidth: 800,
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                boxShadow: '0 20px 60px rgba(2,6,23,0.3)',
+                position: 'relative',
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: currentCourse?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                  borderRadius: '20px 20px 0 0',
+                }} />
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '20px',
+                  borderBottom: '2px solid #f1f5f9',
+                }}>
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 800 }}>Archived Sections</div>
-                    <div style={{ fontSize: 13, color: '#6b7280' }}>{archivedSections.length} archived section(s)</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: '4px' }}>Archived Sections</div>
+                    <div style={{ fontSize: 13, color: '#64748b' }}>{archivedSections.length} archived section(s)</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button onClick={closeArchivedModal} style={{ padding: '8px 12px', background: '#f3f4f6', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Close</button>
-                  </div>
+                  <button
+                    onClick={closeArchivedModal}
+                    style={{
+                      padding: '10px 16px',
+                      background: '#f3f4f6',
+                      border: 'none',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      transition: 'all 0.3s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#e5e7eb';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = '#f3f4f6';
+                    }}
+                  >
+                    Close
+                  </button>
                 </div>
 
-                <div style={{ padding: 18 }}>
+                <div style={{ padding: '20px' }}>
                   {loadingArchived ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>Loading archived sections...</div>
+                    <div style={{
+                      padding: 32,
+                      textAlign: 'center',
+                      color: '#64748b',
+                    }}>
+                      <FontAwesomeIcon icon={faLayerGroup} style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>Loading archived sections...</p>
+                    </div>
                   ) : archivedSections.length === 0 ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>No archived sections.</div>
+                    <div style={{
+                      padding: 40,
+                      textAlign: 'center',
+                      color: '#64748b',
+                      background: '#f8fafc',
+                      borderRadius: '14px',
+                      border: '2px dashed #e2e8f0',
+                    }}>
+                      <FontAwesomeIcon icon={faArchive} style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }} />
+                      <p style={{ margin: 0, fontSize: '16px', fontWeight: '700' }}>No archived sections</p>
+                    </div>
                   ) : (
-                    <div style={{ display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'grid', gap: '14px' }}>
                       {archivedSections.map((s) => (
-                        <div key={s._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 8, border: '1px solid #e6eefb' }}>
+                        <div
+                          key={s._id}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '18px',
+                            borderRadius: '14px',
+                            border: '2px solid #e5e7eb',
+                            background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                            transition: 'all 0.3s ease',
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
                           <div>
-                            <div style={{ fontWeight: 800 }}>{s.name}</div>
+                            <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b', marginBottom: '4px' }}>
+                              {s.name}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>
+                              {courses.find(c => c.id === selectedCourse)?.shortName} - {yearLevels.find(y => y.id === selectedYear)?.label}
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => handleRestoreSection(s)} style={{ padding: '8px 12px', background: 'linear-gradient(90deg,#059669,#047857)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Restore</button>
-                            <button onClick={() => handleDeleteSectionPermanent(s)} style={{ padding: '8px 12px', background: '#ffe4e6', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer' }}>Delete Permanently</button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => handleRestoreSection(s)}
+                              style={{
+                                padding: '8px 16px',
+                                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: '600',
+                                fontSize: '12px',
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.2)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(5, 150, 105, 0.2)';
+                              }}
+                            >
+                              Restore
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -596,47 +934,75 @@ const SectionManagement = () => {
             </div>
           )}
 
-          {/* Add Section Popup */}
+          {/* Enhanced Add Section Popup */}
           {showAddSectionPopup && (
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-            }}
-            onClick={() => {
-              if (!addingSection) {
-                setShowAddSectionPopup(false);
-                setNewSectionName('');
-              }
-            }}
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.5)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}
+              onClick={() => {
+                if (!addingSection) {
+                  setShowAddSectionPopup(false);
+                  setNewSectionName('');
+                }
+              }}
             >
               <div
                 style={{
                   background: 'white',
                   padding: '32px',
-                  borderRadius: '18px',
+                  borderRadius: '20px',
                   boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-                  maxWidth: '500px',
+                  maxWidth: '480px',
                   width: '90%',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: currentCourse?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                }} />
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '24px'
+                  marginBottom: '24px',
+                  paddingTop: '8px',
                 }}>
-                  <h3 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                    Add New Section
-                  </h3>
+                  <div>
+                    <h3 style={{
+                      fontSize: '22px',
+                      fontWeight: '800',
+                      color: '#1e293b',
+                      margin: '0 0 4px 0',
+                      letterSpacing: '-0.3px',
+                    }}>
+                      Add New Section
+                    </h3>
+                    <p style={{
+                      fontSize: '13px',
+                      color: '#64748b',
+                      margin: 0,
+                    }}>
+                      Create a new section for {courses.find(c => c.id === selectedCourse)?.shortName} - {yearLevels.find(y => y.id === selectedYear)?.label}
+                    </p>
+                  </div>
                   <button
                     onClick={() => {
                       if (!addingSection) {
@@ -645,14 +1011,30 @@ const SectionManagement = () => {
                       }
                     }}
                     style={{
-                      background: 'transparent',
+                      background: '#f3f4f6',
                       border: 'none',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
                       cursor: 'pointer',
                       color: '#64748b',
-                      fontSize: '24px',
-                      padding: '4px',
+                      fontSize: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.3s ease',
                     }}
                     disabled={addingSection}
+                    onMouseEnter={(e) => {
+                      if (!addingSection) {
+                        e.currentTarget.style.background = '#e5e7eb';
+                        e.currentTarget.style.color = '#374151';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = '#f3f4f6';
+                      e.currentTarget.style.color = '#64748b';
+                    }}
                   >
                     <FontAwesomeIcon icon={faTimes} />
                   </button>
@@ -660,11 +1042,12 @@ const SectionManagement = () => {
 
                 <form onSubmit={handleAddSection}>
                   <div style={{ marginBottom: '20px' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: '8px', 
-                      fontWeight: '600', 
-                      color: '#374151' 
+                    <label style={{
+                      display: 'block',
+                      marginBottom: '8px',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      fontSize: '14px',
                     }}>
                       Section Name
                     </label>
@@ -677,22 +1060,29 @@ const SectionManagement = () => {
                         width: '100%',
                         padding: '12px',
                         border: '2px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '16px',
+                        borderRadius: '10px',
+                        fontSize: '15px',
                         outline: 'none',
-                        transition: 'border-color 0.2s',
+                        transition: 'all 0.3s ease',
+                        boxSizing: 'border-box',
                       }}
-                      onFocus={(e) => e.target.style.borderColor = '#f97316'}
-                      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = currentCourse?.color || '#f97316';
+                        e.target.style.boxShadow = `0 0 0 3px ${currentCourse?.color || '#f97316'}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#e5e7eb';
+                        e.target.style.boxShadow = 'none';
+                      }}
                       disabled={addingSection}
                       autoFocus
                     />
                   </div>
 
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    justifyContent: 'flex-end' 
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px',
+                    justifyContent: 'flex-end'
                   }}>
                     <button
                       type="button"
@@ -705,14 +1095,25 @@ const SectionManagement = () => {
                       disabled={addingSection}
                       style={{
                         padding: '12px 24px',
-                        background: '#f3f4f6',
+                        background: '#ffffff',
                         color: '#374151',
-                        border: 'none',
-                        borderRadius: '8px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '10px',
                         cursor: addingSection ? 'not-allowed' : 'pointer',
                         fontWeight: '600',
                         fontSize: '14px',
+                        transition: 'all 0.3s ease',
                         opacity: addingSection ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!addingSection) {
+                          e.currentTarget.style.background = '#f9fafb';
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.borderColor = '#e5e7eb';
                       }}
                     >
                       Cancel
@@ -722,13 +1123,31 @@ const SectionManagement = () => {
                       disabled={addingSection || !newSectionName.trim()}
                       style={{
                         padding: '12px 24px',
-                        background: addingSection || !newSectionName.trim() ? '#d1d5db' : currentCourse.gradient,
+                        background: addingSection || !newSectionName.trim()
+                          ? '#d1d5db'
+                          : currentCourse.gradient,
                         color: 'white',
                         border: 'none',
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         cursor: addingSection || !newSectionName.trim() ? 'not-allowed' : 'pointer',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         fontSize: '14px',
+                        transition: 'all 0.3s ease',
+                        boxShadow: addingSection || !newSectionName.trim()
+                          ? 'none'
+                          : `0 4px 12px ${currentCourse?.color || '#f97316'}30`,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!addingSection && newSectionName.trim()) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = `0 6px 16px ${currentCourse?.color || '#f97316'}40`;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = addingSection || !newSectionName.trim()
+                          ? 'none'
+                          : `0 4px 12px ${currentCourse?.color || '#f97316'}30`;
                       }}
                     >
                       {addingSection ? 'Adding...' : 'Add Section'}

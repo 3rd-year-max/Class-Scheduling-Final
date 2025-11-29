@@ -479,13 +479,48 @@ router.get("/:id/conflicts", async (req, res) => {
  */
 router.get("/:id/workload", async (req, res) => {
   try {
-    const instructor = await Instructor.findById(req.params.id);
+    const instructorId = req.params.id;
+    
+    console.log('📊 Workload request for instructor ID:', instructorId);
+    
+    // Validate ObjectId format
+    if (!/^[a-f\d]{24}$/i.test(instructorId)) {
+      console.error('❌ Invalid instructor ID format:', instructorId);
+      return res.status(400).json({ message: 'Invalid instructor ID format' });
+    }
+    
+    const instructor = await Instructor.findById(instructorId);
     if (!instructor) {
+      console.error('❌ Instructor not found with ID:', instructorId);
       return res.status(404).json({ message: 'Instructor not found' });
     }
+    
+    console.log('✅ Instructor found:', instructor.email || instructor.firstname);
 
-    // Find all schedules for this instructor
-    const schedules = await Schedule.find({ instructorEmail: instructor.email });
+    // Find all schedules for this instructor - try multiple matching strategies
+    const instructorEmail = instructor.email?.toLowerCase().trim();
+    const instructorFirstName = (instructor.firstname || instructor.firstName || '').trim();
+    const instructorLastName = (instructor.lastname || instructor.lastName || '').trim();
+    const instructorFullName = `${instructorFirstName} ${instructorLastName}`.trim();
+    
+    // Build search conditions - exclude archived schedules
+    const searchConditions = [
+      { instructorEmail: instructorEmail, archived: { $ne: true } },
+      { instructor: { $regex: instructorFullName, $options: 'i' }, archived: { $ne: true } },
+      { instructor: { $regex: instructorFirstName, $options: 'i' }, archived: { $ne: true } }
+    ];
+    
+    // If email exists, also try matching instructor field with email
+    if (instructorEmail) {
+      searchConditions.push({ instructor: { $regex: instructorEmail, $options: 'i' }, archived: { $ne: true } });
+    }
+    
+    // Try matching by email first, then by name
+    let schedules = await Schedule.find({ 
+      $or: searchConditions
+    });
+    
+    console.log(`Found ${schedules.length} schedules for instructor ${instructorId} (${instructorEmail || instructorFullName})`);
 
     // Helper to parse time string like "08:00 AM - 09:30 AM" to hours
     function parseHours(timeStr) {
@@ -519,15 +554,22 @@ router.get("/:id/workload", async (req, res) => {
     const totalHours = dailyBreakdown.reduce((sum, d) => sum + d.hours, 0);
     const busiestDay = dailyBreakdown.reduce((a, b) => (a.hours > b.hours ? a : b), { day: '', hours: 0 }).day;
 
+    // Return data even if no schedules (empty workload)
     res.json({
       weeklySummary: {
         totalClasses,
         totalHours: Math.round(totalHours * 100) / 100,
         busiestDay: busiestDay || 'N/A'
       },
-      dailyBreakdown
+      dailyBreakdown,
+      instructor: {
+        id: instructor._id,
+        name: instructor.firstname || instructor.firstName || instructor.name || 'Unknown',
+        email: instructor.email || 'No email'
+      }
     });
   } catch (err) {
+    console.error('Error fetching workload:', err);
     res.status(500).json({ message: 'Failed to fetch workload data', error: err.message });
   }
 });

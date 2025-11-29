@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../common/Sidebar.jsx';
 import Header from '../common/Header.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDoorOpen, faUser, faCalendarAlt, faDownload, faArrowRight, faEnvelope, faPhone, faIdCard, faMapMarkerAlt, faClock, faChalkboardTeacher } from '@fortawesome/free-solid-svg-icons';
+import { faDoorOpen, faUser, faCalendarAlt, faDownload, faArrowRight, faEnvelope, faPhone, faIdCard, faMapMarkerAlt, faClock, faChalkboardTeacher, faSearch } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 import XLSX from 'xlsx-js-style';
 
@@ -182,15 +182,49 @@ const Search = () => {
         <Header title="Search" />
         <div className="dashboard-content" style={{ marginTop: '140px' }}>
           {/* Welcome Section */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <h2>Search Results</h2>
-            <p>Search query: <strong>"{q}"</strong></p>
-            {loading && (
-              <div style={{ marginTop: '16px', padding: '12px', background: '#f0f9ff', borderRadius: '8px', color: '#0f2c63', fontWeight: '500' }}>
-                Loading search results...
+          <div className="welcome-section" style={{ 
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            padding: '20px 24px',
+            borderRadius: '16px',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-10%',
+              width: '200px',
+              height: '200px',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none'
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}>
+                <FontAwesomeIcon icon={faSearch} style={{ fontSize: 28, color: '#fff' }} />
               </div>
-            )}
-            {!loading && (counts.rooms > 0 || counts.instructors > 0 || counts.schedules > 0) && (
+              <div>
+                <h2 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: '700', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>Search Results</h2>
+                <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>Search query: <strong>"{q}"</strong></p>
+              </div>
+            </div>
+          </div>
+          
+          {loading && (
+            <div style={{ marginTop: '16px', padding: '12px', background: '#f0f9ff', borderRadius: '8px', color: '#0f2c63', fontWeight: '500' }}>
+              Loading search results...
+            </div>
+          )}
+          {!loading && (counts.rooms > 0 || counts.instructors > 0 || counts.schedules > 0) && (
               <div style={{ marginTop: '16px' }}>
                 <button
                   onClick={exportSearchResults}
@@ -223,7 +257,6 @@ const Search = () => {
                 </button>
               </div>
             )}
-          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
             <div style={{ background: '#fff', borderRadius: 12, padding: 16, borderLeft: '5px solid #f97316' }}>

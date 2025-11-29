@@ -10,6 +10,45 @@ import apiClient from '../../services/apiClient.js';
 import '../../styles/InstructorWorkload.css';
 const InstructorWorkload = () => {
   const { id } = useParams();
+  
+  // Clean the ID to remove any unexpected characters (like :1, port numbers, etc.)
+  // Also handle cases where the ID might have been corrupted
+  const cleanId = React.useMemo(() => {
+    // Try to get ID from route params first
+    let rawId = id;
+    
+    // If ID is not available from params, try to extract from URL
+    if (!rawId || rawId.includes(':')) {
+      const pathMatch = window.location.pathname.match(/\/instructor\/([^/]+)\/workload/);
+      if (pathMatch && pathMatch[1]) {
+        rawId = pathMatch[1];
+        console.log('Extracted ID from URL path:', rawId);
+      }
+    }
+    
+    if (!rawId) return null;
+    
+    // Remove everything after : or ; (common URL corruption)
+    let cleaned = rawId.trim().replace(/[:;].*$/, '').replace(/\s+/g, '');
+    // Remove any non-hexadecimal characters (MongoDB ObjectIds are hex)
+    cleaned = cleaned.replace(/[^a-f0-9]/gi, '');
+    // Ensure it's exactly 24 characters (MongoDB ObjectId length)
+    if (cleaned.length > 24) {
+      cleaned = cleaned.substring(0, 24);
+    }
+    
+    const result = cleaned.length === 24 ? cleaned : null;
+    if (rawId !== result) {
+      console.warn('ID was cleaned:', { original: rawId, cleaned: result });
+    }
+    return result;
+  }, [id]);
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('InstructorWorkload - Route params:', { id, cleanId, pathname: window.location.pathname });
+  }, [id, cleanId]);
+  
   const [workloadData, setWorkloadData] = useState(null);
   const [instructor, setInstructor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +79,7 @@ const InstructorWorkload = () => {
     try {
       const canvas = await html2canvas(cardRef.current, { backgroundColor: null });
       const link = document.createElement('a');
-      link.download = `instructor-workload-${id}.png`;
+      link.download = `instructor-workload-${cleanId}.png`;
       link.href = canvas.toDataURL();
       link.click();
     } finally {
@@ -50,27 +89,96 @@ const InstructorWorkload = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
+      if (!cleanId) {
+        setError('Instructor ID is missing');
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
+      setError(null);
+      
+      // Validate the ID format (MongoDB ObjectId is 24 hex characters)
+      if (!/^[a-f\d]{24}$/i.test(cleanId)) {
+        setError(`Invalid instructor ID format: "${cleanId}". Expected 24-character MongoDB ObjectId.`);
+        setLoading(false);
+        return;
+      }
+      
+      // Final validation and cleaning
+      const finalId = cleanId ? cleanId.replace(/[^a-f0-9]/gi, '').substring(0, 24) : null;
+      
+      if (!finalId || finalId.length !== 24) {
+        setError(`Invalid instructor ID format: "${cleanId}". Expected 24-character MongoDB ObjectId.`);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Fetching workload for instructor ID:', finalId, '(original:', id, ', cleaned:', cleanId, ')');
+      console.log('Full URL will be:', `/api/instructors/${finalId}/workload`);
+      
       try {
-        // Fetch workload data
-        const workloadRes = await apiClient.get(`/api/instructors/${id}/workload`);
-        setWorkloadData(workloadRes.data);
-        // Fetch instructor info
-        try {
-          const instructorRes = await apiClient.getInstructorById(id);
-          setInstructor(instructorRes.data);
-        } catch (err) {
-          // Instructor fetch failed, but workload data is available
-          console.warn('Could not fetch instructor info:', err);
+        // Fetch workload data with the final cleaned ID
+        const workloadRes = await apiClient.get(`/api/instructors/${finalId}/workload`);
+        if (workloadRes && workloadRes.data) {
+          setWorkloadData(workloadRes.data);
+          // If instructor info is included in workload response, use it
+          if (workloadRes.data.instructor) {
+            setInstructor(workloadRes.data.instructor);
+          }
+        } else {
+          setError('No workload data received');
+        }
+        // Fetch instructor info separately if not included in workload response
+        if (!workloadRes?.data?.instructor) {
+          try {
+            const instructorRes = await apiClient.getInstructorById(finalId);
+            if (instructorRes && instructorRes.data) {
+              setInstructor(instructorRes.data);
+            }
+          } catch (err) {
+            // Instructor fetch failed, but workload data is available
+            console.warn('Could not fetch instructor info:', err);
+          }
         }
       } catch (err) {
-        setError(err.message || 'Failed to load workload data');
+        console.error('Error fetching workload:', {
+          error: err,
+          response: err.response,
+          status: err.response?.status,
+          data: err.response?.data,
+          url: err.config?.url,
+          instructorId: finalId,
+          originalId: id,
+          cleanedId: cleanId
+        });
+        
+        if (err.response?.status === 404) {
+          const errorData = err.response?.data;
+          if (errorData?.message === 'Instructor not found') {
+            setError(`Instructor not found. The instructor with ID "${finalId}" does not exist in the database.`);
+          } else {
+            setError(`Resource not found. Please verify the instructor ID is correct.`);
+          }
+        } else if (err.response?.status === 400) {
+          setError(`Invalid instructor ID format. Please check the URL.`);
+        } else {
+          const errorMessage = err.response?.data?.message || err.message || 'Failed to load workload data';
+          setError(errorMessage);
+        }
       } finally {
         setLoading(false);
       }
     };
-    fetchAll();
-  }, [id]);
+    
+    if (cleanId) {
+      fetchAll();
+    } else {
+      setError('Invalid instructor ID');
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanId]); // cleanId is derived from id via useMemo, so id is already tracked
 
   if (loading) {
     return (

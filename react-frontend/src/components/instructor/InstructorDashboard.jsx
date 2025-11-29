@@ -327,7 +327,7 @@ const InstructorDashboard = () => {
 
   // Setup Socket.io for real-time room status notifications and schedule updates
   useEffect(() => {
-    const socket = io('http://localhost:5000', { autoConnect: true });
+    const socket = io(process.env.REACT_APP_API_BASE || 'http://localhost:5000', { autoConnect: true });
 
     socket.on('connect', () => {
       console.log('✅ Connected to server for notifications');

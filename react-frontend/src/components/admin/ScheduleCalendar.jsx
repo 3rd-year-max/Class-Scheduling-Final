@@ -136,31 +136,6 @@ const ScheduleCalendar = () => {
     return h * 60 + (m || 0);
   };
 
-  const handleRemoveSection = (sectionId, sectionName) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Remove Section',
-      message: `Are you sure you want to remove section "${sectionName}"? This action cannot be undone.`,
-      onConfirm: async () => {
-        try {
-          const response = await apiClient.delete(`/api/sections/${sectionId}`);
-          
-          if (response.data.success) {
-            showToast('Section removed successfully.', 'success');
-            await fetchAllData();
-            setSelectedSection(null);
-          } else {
-            showToast(response.data.message || 'Failed to remove section.', 'error');
-          }
-        } catch (err) {
-          showToast('Error removing section.', 'error');
-          console.error('Remove section error:', err.response?.data || err.message);
-        }
-        setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false });
-      },
-      destructive: true,
-    });
-  };
 
   const handleAddSectionSubmit = async (e) => {
     e.preventDefault();
@@ -246,17 +221,46 @@ const ScheduleCalendar = () => {
           </button>
 
           {/* Course Header */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <FontAwesomeIcon 
-                icon={courseDetails[course]?.icon || faGraduationCap} 
-                style={{ fontSize: 32, color: '#f97316' }}
-              />
-              <h2 style={{ margin: 0 }}>
-                {course.toUpperCase()} - {formatYearDisplay(year)} Schedule
-              </h2>
+          <div className="welcome-section" style={{ 
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            padding: '20px 24px',
+            borderRadius: '16px',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-10%',
+              width: '200px',
+              height: '200px',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none'
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}>
+                <FontAwesomeIcon 
+                  icon={courseDetails[course]?.icon || faGraduationCap}
+                  style={{ fontSize: 28, color: '#fff' }}
+                />
+              </div>
+              <div>
+                <h2 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: '700', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>
+                  {course.toUpperCase()} - {formatYearDisplay(year)} Schedule
+                </h2>
+                <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>{courseDetails[course]?.name || 'Course Information'}</p>
+              </div>
             </div>
-            <p style={{ margin: 0 }}>{courseDetails[course]?.name || 'Course Information'}</p>
           </div>
 
           {loadingSchedules ? (
@@ -445,24 +449,6 @@ const ScheduleCalendar = () => {
                         </p>
                       </div>
                       <div style={{ display: 'flex', gap: '10px' }}>
-                        {removeSectionMode && (
-                          <button
-                            onClick={() => handleRemoveSection(selectedSection._id, selectedSection.name)}
-                            style={{
-                              padding: '12px 20px',
-                              background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              fontSize: '15px',
-                            }}
-                          >
-                            <FontAwesomeIcon icon={faMinusCircle} style={{ marginRight: '8px' }} />
-                            Remove This Section
-                          </button>
-                        )}
                         <button
                           onClick={downloadSchedule}
                           style={{

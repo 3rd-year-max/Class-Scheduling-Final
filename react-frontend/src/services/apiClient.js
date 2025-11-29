@@ -228,6 +228,13 @@ class ApiClient {
   }
 
   /**
+   * Get available time slots for scheduling
+   */
+  async getScheduleAvailability(params = {}) {
+    return this.get('/api/schedule/availability', { params });
+  }
+
+  /**
    * Update schedule with version control (MVCC)
    * Includes __v if available for optimistic locking
    */

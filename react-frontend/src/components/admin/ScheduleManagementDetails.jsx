@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
   faPlus,
-  faTrash,
+  faCalendarPlus,
   faCalendarAlt,
   faGraduationCap,
   faCode,
@@ -14,8 +14,8 @@ import {
   faUser,
   faDoorOpen,
   faFileAlt,
-  faEdit
-  ,faArchive
+  faEdit,
+  faArchive
 } from '@fortawesome/free-solid-svg-icons';
 import apiClient from '../../services/apiClient.js';
 import { generateTimeSlots, TIME_SLOT_CONFIGS, timeRangesOverlap, getTimeRangeDuration, minutesToTimeString, timeStringToMinutes } from '../../utils/timeUtils.js';
@@ -263,6 +263,13 @@ const ScheduleManagementDetails = () => {
   const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [archivedSchedules, setArchivedSchedules] = useState([]);
   const [archivedLoading, setArchivedLoading] = useState(false);
+  const [formDay, setFormDay] = useState('');
+  const [formInstructor, setFormInstructor] = useState('');
+  const [formRoom, setFormRoom] = useState('');
+  const [availabilitySlots, setAvailabilitySlots] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const startTimeInputRef = useRef(null);
+  const endTimeInputRef = useRef(null);
 
   const courseDetails = {
     bsit: {
@@ -364,10 +371,85 @@ const ScheduleManagementDetails = () => {
       setSelectedSection(sections[0]);
     }
   }, [sections, selectedSection]);
+
+  useEffect(() => {
+    if (!showAddSchedulePopup || !selectedSection || !formDay) {
+      if (!showAddSchedulePopup) {
+        setAvailabilitySlots([]);
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAvailability = async () => {
+      setAvailabilityLoading(true);
+      try {
+        const params = {
+          day: formDay,
+          course,
+          year: normalizedYear,
+          section: selectedSection.name,
+        };
+        if (formInstructor) params.instructor = formInstructor;
+        if (formRoom) params.room = formRoom;
+        const { data } = await apiClient.getScheduleAvailability(params);
+        if (cancelled) return;
+        setAvailabilitySlots(data?.availability || []);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Failed to fetch availability:', error);
+        setAvailabilitySlots([]);
+      } finally {
+        if (!cancelled) {
+          setAvailabilityLoading(false);
+        }
+      }
+    };
+
+    fetchAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showAddSchedulePopup,
+    selectedSection,
+    formDay,
+    formInstructor,
+    formRoom,
+    course,
+    normalizedYear,
+  ]);
+  
+  const resetAddScheduleState = useCallback(() => {
+    setFormDay('');
+    setFormInstructor('');
+    setFormRoom('');
+    setAvailabilitySlots([]);
+    if (startTimeInputRef.current) startTimeInputRef.current.value = '';
+    if (endTimeInputRef.current) endTimeInputRef.current.value = '';
+  }, []);
+
+  const openAddSchedulePopup = () => {
+    resetAddScheduleState();
+    setShowAddSchedulePopup(true);
+  };
+
+  const closeAddSchedulePopup = () => {
+    resetAddScheduleState();
+    setShowAddSchedulePopup(false);
+    setConflictDetails(null);
+    setPendingScheduleData(null);
+  };
   
   const getSectionSchedules = useCallback((sectionName) => {
     return schedules.filter(sched => sched.section === sectionName);
   }, [schedules]);
+
+  const handleSlotSelect = (slot) => {
+    if (startTimeInputRef.current) startTimeInputRef.current.value = slot.start;
+    if (endTimeInputRef.current) endTimeInputRef.current.value = slot.end;
+    setConflictDetails(null);
+  };
 
   const handleAddSchedule = async (e) => {
     e.preventDefault();
@@ -433,9 +515,7 @@ const ScheduleManagementDetails = () => {
       const res = await apiClient.createSchedule(scheduleData);
       if (res.data.success) {
         showToast('Schedule added successfully!', 'success');
-        setShowAddSchedulePopup(false);
-        setConflictDetails(null);
-        setPendingScheduleData(null);
+        closeAddSchedulePopup();
         await fetchData();
         if (formElement) formElement.reset();
       } else {
@@ -468,31 +548,7 @@ const ScheduleManagementDetails = () => {
   const handleConflictCancel = () => {
     setConflictDetails(null);
     setPendingScheduleData(null);
-    setShowAddSchedulePopup(false);
-  };
-
-  const handleDeleteSchedule = (scheduleId) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Delete Schedule',
-      message: 'Are you sure you want to delete this schedule? This action cannot be undone.',
-      onConfirm: async () => {
-        try {
-          const res = await apiClient.delete(`/api/schedule/${scheduleId}`);
-          if (res.data.success) {
-            showToast('Schedule deleted successfully.', 'success');
-            await fetchData();
-          } else {
-            showToast(res.data.message || 'Failed to delete schedule.', 'error');
-          }
-        } catch (error) {
-          showToast('Error deleting schedule.', 'error');
-          console.error('Error deleting schedule:', error);
-        }
-        setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false });
-      },
-      destructive: true,
-    });
+    closeAddSchedulePopup();
   };
 
   const handleArchiveSchedule = (scheduleId) => {
@@ -544,32 +600,6 @@ const ScheduleManagementDetails = () => {
       showToast('Error restoring schedule.', 'error');
     }
   };
-
-  const handleDeletePermanently = (scheduleId) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Delete Permanently',
-      message: 'This will permanently delete the schedule from the database. This action cannot be undone. Continue?',
-      onConfirm: async () => {
-        try {
-          const res = await apiClient.delete(`/api/schedule/${scheduleId}`);
-          if (res.data.success) {
-            showToast('Schedule permanently deleted.', 'success');
-            await fetchArchivedSchedules();
-            await fetchData();
-          } else {
-            showToast(res.data.message || 'Failed to delete schedule.', 'error');
-          }
-        } catch (err) {
-          console.error('Error deleting schedule permanently', err);
-          showToast('Error deleting schedule.', 'error');
-        }
-        setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false });
-      },
-      destructive: true,
-    });
-  };
-  
 
   const handleEditClick = (schedule) => {
     setScheduleToEdit(schedule);
@@ -750,12 +780,12 @@ const ScheduleManagementDetails = () => {
   // Template apply functionality removed (templates/import UI deprecated)
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
       <Sidebar />
       <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
         <Header title="Schedule Management" />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Back Button */}
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
+          {/* Enhanced Back Button */}
           <button
             onClick={() => navigate('/admin/schedule-management')}
             style={{
@@ -763,143 +793,257 @@ const ScheduleManagementDetails = () => {
               alignItems: 'center',
               gap: '10px',
               padding: '12px 20px',
-              background: 'rgba(255, 255, 255, 0.95)',
+              background: '#ffffff',
               border: '2px solid #e5e7eb',
-              borderRadius: '12px',
+              borderRadius: '14px',
               color: '#374151',
               fontWeight: '600',
               cursor: 'pointer',
-              marginBottom: '20px',
+              marginBottom: '24px',
               fontSize: '15px',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.background = '#f9fafb';
               e.currentTarget.style.borderColor = '#d1d5db';
+              e.currentTarget.style.transform = 'translateX(-4px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+              e.currentTarget.style.background = '#ffffff';
               e.currentTarget.style.borderColor = '#e5e7eb';
+              e.currentTarget.style.transform = 'translateX(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
             }}
           >
             <FontAwesomeIcon icon={faArrowLeft} />
             <span>Back to Year Levels</span>
           </button>
 
-          {/* Course Header */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <FontAwesomeIcon 
-                icon={courseDetails[course]?.icon || faGraduationCap} 
-                style={{ fontSize: 32, color: '#f97316' }}
-              />
-              <h2 style={{ margin: 0 }}>
-                {courseDetails[course]?.shortName} - {formatYearDisplay(year)}
-              </h2>
+          {/* Enhanced Course Header */}
+          <div style={{
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            color: '#ffffff',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-10%',
+              width: '200px',
+              height: '200px',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none'
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}>
+                <FontAwesomeIcon 
+                  icon={courseDetails[course]?.icon || faGraduationCap}
+                  style={{ fontSize: 28, color: '#fff' }}
+                />
+              </div>
+              <div>
+                <h2 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+                }}>
+                  {courseDetails[course]?.shortName} - {formatYearDisplay(year)}
+                </h2>
+                <p style={{
+                  margin: '6px 0 0 0',
+                  fontSize: '14px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: '500',
+                }}>
+                  {courseDetails[course]?.name}
+                </p>
+              </div>
             </div>
-            <p style={{ margin: 0 }}>{courseDetails[course]?.name}</p>
           </div>
 
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              Loading sections and schedules...
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 40px',
+              color: '#64748b',
+              background: '#ffffff',
+              borderRadius: '24px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+            }}>
+              <FontAwesomeIcon icon={faClock} style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }} />
+              <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Loading sections and schedules...</p>
             </div>
           ) : sections.length === 0 ? (
             <div style={{
-              background: '#fff',
-              padding: '60px 30px',
-              borderRadius: '18px',
+              background: '#ffffff',
+              padding: '60px 40px',
+              borderRadius: '24px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
               textAlign: 'center',
-              borderLeft: '5px solid #f97316',
+              border: '2px dashed #e2e8f0',
             }}>
-              <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '16px' }}>
+              <FontAwesomeIcon
+                icon={courseDetails[course]?.icon || faGraduationCap}
+                style={{ fontSize: '64px', marginBottom: '20px', opacity: 0.3, color: '#f97316' }}
+              />
+              <p style={{
+                color: '#64748b',
+                marginBottom: '24px',
+                fontSize: '18px',
+                fontWeight: '600',
+              }}>
                 No sections found for {courseDetails[course]?.shortName} {formatYearDisplay(year)}.
               </p>
               <button
                 onClick={() => navigate('/admin/manage-schedule')}
                 style={{
-                  padding: '12px 24px',
+                  padding: '14px 28px',
                   background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '10px',
-                  fontWeight: '600',
+                  borderRadius: '12px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   fontSize: '15px',
+                  boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 44, 99, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
                 }}
               >
                 Go to Section Management
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '24px' }}>
-              {/* Sections Sidebar */}
+            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '28px' }}>
+              {/* Enhanced Sections Sidebar */}
               <div
                 style={{
-                  background: '#fff',
-                  padding: '24px',
-                  borderRadius: '18px',
+                  background: '#ffffff',
+                  padding: '28px',
+                  borderRadius: '24px',
                   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                  borderLeft: '5px solid #f97316',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
                   height: 'fit-content',
                   maxHeight: 'calc(100vh - 280px)',
                   overflowY: 'auto',
+                  position: 'relative',
                 }}
               >
+                {/* Top gradient accent */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '6px',
+                  background: courseDetails[course]?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                  borderRadius: '24px 24px 0 0',
+                }} />
+                
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: '20px',
-                  paddingBottom: '16px',
+                  marginBottom: '24px',
+                  paddingBottom: '20px',
                   borderBottom: '2px solid #f1f5f9',
+                  paddingTop: '8px',
                 }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                  <h3 style={{
+                    fontSize: '20px',
+                    fontWeight: '800',
+                    color: '#1e293b',
+                    margin: 0,
+                    letterSpacing: '-0.3px',
+                  }}>
                     Sections
                   </h3>
                   <span style={{
-                    background: '#e0e7ff',
-                    color: '#4f46e5',
-                    padding: '4px 12px',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    color: '#ffffff',
+                    padding: '6px 14px',
                     borderRadius: '12px',
                     fontSize: '13px',
                     fontWeight: '700',
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
                   }}>
                     {sections.length}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {sections.map((section) => (
                     <button
                       key={section._id}
                       onClick={() => setSelectedSection(section)}
                       style={{
-                        background: selectedSection?._id === section._id ? '#eff6ff' : '#f9fafb',
-                        border: selectedSection?._id === section._id ? '2px solid #3b82f6' : '2px solid transparent',
-                        padding: '16px',
-                        borderRadius: '12px',
+                        background: selectedSection?._id === section._id 
+                          ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
+                          : '#f9fafb',
+                        border: selectedSection?._id === section._id 
+                          ? '2px solid #3b82f6' 
+                          : '2px solid transparent',
+                        padding: '18px',
+                        borderRadius: '16px',
                         cursor: 'pointer',
                         textAlign: 'left',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         width: '100%',
+                        boxShadow: selectedSection?._id === section._id 
+                          ? '0 4px 12px rgba(59, 130, 246, 0.15)' 
+                          : 'none',
                       }}
                       onMouseOver={(e) => {
                         if (selectedSection?._id !== section._id) {
                           e.currentTarget.style.background = '#f3f4f6';
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
                         }
                       }}
                       onMouseOut={(e) => {
                         if (selectedSection?._id !== section._id) {
                           e.currentTarget.style.background = '#f9fafb';
+                          e.currentTarget.style.transform = 'translateX(0)';
+                          e.currentTarget.style.boxShadow = 'none';
                         }
                       }}
                     >
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                      <div style={{
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        color: selectedSection?._id === section._id ? '#1e40af' : '#1f2937',
+                        marginBottom: '6px',
+                      }}>
                         {course.toUpperCase()}-{year.charAt(0).toUpperCase()}{section.name}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        color: selectedSection?._id === section._id ? '#3b82f6' : '#6b7280',
+                        fontWeight: '500',
+                      }}>
                         {getSectionSchedules(section.name).length} schedule(s)
                       </div>
                     </button>
@@ -907,269 +1051,424 @@ const ScheduleManagementDetails = () => {
                 </div>
               </div>
 
-              {/* Schedules Content */}
+              {/* Enhanced Schedules Content */}
               <div
                 style={{
-                  background: '#fff',
-                  padding: '30px',
-                  borderRadius: '18px',
+                  background: '#ffffff',
+                  padding: '32px',
+                  borderRadius: '24px',
                   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                  borderLeft: '5px solid #f97316',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
                   height: 'fit-content',
                   maxHeight: 'calc(100vh - 280px)',
                   overflowY: 'auto',
+                  position: 'relative',
                 }}
               >
-                {selectedSection && (() => {
-                  const sectionSchedules = getSectionSchedules(selectedSection?.name || '');
-                  return (
-                    <>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '24px',
-                        paddingBottom: '20px',
-                        borderBottom: '2px solid #f1f5f9',
-                      }}>
-                        <div>
-                          <h3 style={{ fontSize: '22px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>
-                            {course.toUpperCase()}-{year.charAt(0).toUpperCase()}{selectedSection.name}
-                          </h3>
-                          <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-                            {sectionSchedules.length} schedule(s)
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                          {/* Templates and Import buttons removed per request */}
-                          <button
-                            onClick={() => setShowAddSchedulePopup(true)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '10px',
-                              padding: '12px 20px',
-                              background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
+                {/* Top gradient accent */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '6px',
+                  background: courseDetails[course]?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                  borderRadius: '24px 24px 0 0',
+                }} />
+                {!selectedSection ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '80px 30px',
+                    color: '#64748b',
+                  }}>
+                    <FontAwesomeIcon icon={faUser} style={{ fontSize: '64px', marginBottom: '20px', opacity: 0.3 }} />
+                    <p style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Select a section to review schedules.</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const sectionSchedules = getSectionSchedules(selectedSection?.name || '');
+                    return (
+                      <>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '28px',
+                          paddingBottom: '24px',
+                          borderBottom: '2px solid #f1f5f9',
+                          paddingTop: '8px',
+                        }}>
+                          <div>
+                            <h3 style={{
+                              fontSize: '24px',
+                              fontWeight: '800',
+                              color: '#1e293b',
+                              margin: '0 0 6px 0',
+                              letterSpacing: '-0.5px',
+                            }}>
+                              {course.toUpperCase()}-{year.charAt(0).toUpperCase()}{selectedSection.name}
+                            </h3>
+                            <p style={{
                               fontSize: '15px',
-                              transition: 'transform 0.18s ease',
-                            }}
-                            onMouseOver={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-                            onMouseOut={(e) => (e.currentTarget.style.transform = '')}
-                          >
-                            <FontAwesomeIcon icon={faPlus} />
-                            Add Schedule
-                          </button>
-                          <button
-                            onClick={openArchivedModal}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '10px 14px',
-                              background: '#f3f4f6',
-                              color: '#374151',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '10px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              fontSize: '13px'
-                            }}
-                          >
-                            <FontAwesomeIcon icon={faFileAlt} />
-                            Archived
-                          </button>
-                        </div>
-                      </div>
-
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                        gap: '20px',
-                      }}>
-                        {sectionSchedules.length === 0 ? (
-                          <div style={{
-                            gridColumn: '1 / -1',
-                            textAlign: 'center',
-                            padding: '60px 20px',
-                          }}>
-                            <FontAwesomeIcon icon={faCalendarAlt} style={{ fontSize: 64, color: '#d1d5db', marginBottom: '16px' }} />
-                            <p style={{ color: '#6b7280', fontSize: '16px', marginBottom: '20px' }}>No schedules yet for this section</p>
+                              color: '#64748b',
+                              margin: 0,
+                              fontWeight: '500',
+                            }}>
+                              {sectionSchedules.length} schedule(s) listed below
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                             <button
-                              onClick={() => setShowAddSchedulePopup(true)}
+                              onClick={openAddSchedulePopup}
                               style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                padding: '12px 24px',
-                                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                                padding: '12px 20px',
+                                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                                 color: 'white',
                                 border: 'none',
-                                borderRadius: '10px',
-                                fontWeight: '600',
+                                borderRadius: '12px',
+                                fontWeight: '700',
                                 cursor: 'pointer',
+                                fontSize: '14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)',
+                                transition: 'all 0.3s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.4)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
                               }}
                             >
                               <FontAwesomeIcon icon={faPlus} />
-                              Add First Schedule
+                              Add Schedule
+                            </button>
+                            <button
+                              onClick={openArchivedModal}
+                              style={{
+                                padding: '12px 20px',
+                                background: '#ffffff',
+                                color: '#374151',
+                                border: '2px solid #e5e7eb',
+                                borderRadius: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'all 0.3s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#f9fafb';
+                                e.currentTarget.style.borderColor = '#d1d5db';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.borderColor = '#e5e7eb';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                              }}
+                            >
+                              <FontAwesomeIcon icon={faFileAlt} />
+                              Archived
                             </button>
                           </div>
-                        ) : (
-                          sectionSchedules.map((schedule) => (
-                          <div
-                            key={schedule._id}
-                            style={{
-                              background: 'linear-gradient(135deg, #f9fafb 0%, #ffffff 100%)',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '14px',
-                              padding: '20px',
-                              transition: 'all 0.2s ease',
-                            }}
-                            onMouseOver={(e) => {
-                              e.currentTarget.style.borderColor = '#3b82f6';
-                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.15)';
-                            }}
-                            onMouseOut={(e) => {
-                              e.currentTarget.style.borderColor = '#e5e7eb';
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
+                        </div>
+
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                          gap: '24px',
+                        }}>
+                          {sectionSchedules.length === 0 ? (
                             <div style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              justifyContent: 'space-between',
-                              marginBottom: '16px',
-                              paddingBottom: '16px',
-                              borderBottom: '1px solid #e5e7eb',
+                              gridColumn: '1 / -1',
+                              textAlign: 'center',
+                              padding: '60px 20px',
+                              color: '#64748b',
+                              background: '#f8fafc',
+                              borderRadius: '16px',
+                              border: '2px dashed #e2e8f0',
                             }}>
-                              <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', margin: 0, flex: 1 }}>
-                                {schedule.subject}
-                              </h4>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button
-                                  onClick={() => handleEditClick(schedule)}
-                                  title="Edit Schedule"
-                                  style={{
-                                    background: '#fef3c7',
-                                    color: '#d97706',
-                                    border: 'none',
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
+                              <FontAwesomeIcon icon={faCalendarAlt} style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }} />
+                              <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>This section has no schedules yet.</p>
+                              <p style={{ margin: '8px 0 0 0', fontSize: '14px', opacity: 0.7 }}>Click "Add Schedule" to create one</p>
+                            </div>
+                          ) : (
+                            sectionSchedules.map((schedule) => (
+                              <div
+                                key={schedule._id}
+                                style={{
+                                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                                  border: '2px solid #e5e7eb',
+                                  borderRadius: '20px',
+                                  padding: '24px',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  position: 'relative',
+                                  overflow: 'hidden',
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.borderColor = '#3b82f6';
+                                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.2)';
+                                  e.currentTarget.style.transform = 'translateY(-4px)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.borderColor = '#e5e7eb';
+                                  e.currentTarget.style.boxShadow = 'none';
+                                  e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                              >
+                                {/* Decorative gradient bar */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: '4px',
+                                  background: courseDetails[course]?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                                }} />
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  justifyContent: 'space-between',
+                                  marginBottom: '20px',
+                                  paddingBottom: '18px',
+                                  borderBottom: '1px solid #e5e7eb',
+                                  paddingTop: '4px',
+                                }}>
+                                  <div style={{ flex: 1 }}>
+                                    <h4 style={{
+                                      fontSize: '18px',
+                                      fontWeight: '700',
+                                      color: '#1f2937',
+                                      margin: '0 0 8px 0',
+                                      letterSpacing: '-0.3px',
+                                    }}>
+                                      {schedule.subject}
+                                    </h4>
+                                    <p style={{
+                                      fontSize: '13px',
+                                      color: '#6b7280',
+                                      margin: 0,
+                                      fontWeight: '500',
+                                    }}>
+                                      Instructor: <strong style={{ color: '#1f2937' }}>{schedule.instructor || 'TBA'}</strong>
+                                    </p>
+                                  </div>
+                                  <span style={{
+                                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                    color: '#b45309',
+                                    padding: '6px 14px',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    boxShadow: '0 2px 8px rgba(180, 83, 9, 0.15)',
+                                    whiteSpace: 'nowrap',
+                                    marginLeft: '12px',
+                                  }}>
+                                    {schedule.day}
+                                  </span>
+                                </div>
+
+                                <div style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '12px',
+                                  fontSize: '14px',
+                                  color: '#374151',
+                                  marginBottom: '20px',
+                                }}>
+                                  <div style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
-                                  }}
-                                  onMouseOver={(e) => (e.currentTarget.style.background = '#fde68a')}
-                                  onMouseOut={(e) => (e.currentTarget.style.background = '#fef3c7')}
-                                >
-                                  <FontAwesomeIcon icon={faEdit} />
-                                </button>
-                                
-                                  <button
-                                    onClick={() => openRescheduleModal(schedule)}
-                                    title="Reschedule"
-                                  style={{
-                                    background: '#eef2ff',
-                                    color: '#3730a3',
-                                    border: 'none',
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
-                                  }}
-                                  onMouseOver={(e) => (e.currentTarget.style.background = '#e0e7ff')}
-                                  onMouseOut={(e) => (e.currentTarget.style.background = '#eef2ff')}
-                                >
-                                  <FontAwesomeIcon icon={faCalendarAlt} />
-                                </button>
-                                  <button
-                                    onClick={() => handleArchiveSchedule(schedule._id)}
-                                    title="Archive Schedule"
-                                    style={{
-                                      background: '#f3f4f6',
-                                      color: '#374151',
-                                      border: 'none',
-                                      width: '32px',
-                                      height: '32px',
-                                      borderRadius: '8px',
-                                      cursor: 'pointer',
+                                    gap: '12px',
+                                    color: '#1f2937',
+                                    padding: '10px',
+                                    background: '#f8fafc',
+                                    borderRadius: '10px',
+                                  }}>
+                                    <div style={{
+                                      width: '36px',
+                                      height: '36px',
+                                      borderRadius: '10px',
+                                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      transition: 'all 0.2s ease',
-                                    }}
-                                    onMouseOver={(e) => (e.currentTarget.style.background = '#e5e7eb')}
-                                    onMouseOut={(e) => (e.currentTarget.style.background = '#f3f4f6')}
-                                  >
-                                    <FontAwesomeIcon icon={faArchive} />
-                                  </button>
-                                <button
-                                  onClick={() => handleDeleteSchedule(schedule._id)}
-                                  title="Delete Schedule"
-                                  style={{
-                                    background: '#fee2e2',
-                                    color: '#dc2626',
-                                    border: 'none',
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
+                                      color: '#ffffff',
+                                      fontSize: '14px',
+                                    }}>
+                                      <FontAwesomeIcon icon={faClock} />
+                                    </div>
+                                    <span style={{ fontWeight: '600' }}>{schedule.time}</span>
+                                  </div>
+                                  <div style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
-                                  }}
-                                  onMouseOver={(e) => (e.currentTarget.style.background = '#fecaca')}
-                                  onMouseOut={(e) => (e.currentTarget.style.background = '#fee2e2')}
-                                >
-                                  <FontAwesomeIcon icon={faTrash} />
-                                </button>
-                              </div>
-                            </div>
+                                    gap: '12px',
+                                    padding: '10px',
+                                    background: '#f8fafc',
+                                    borderRadius: '10px',
+                                  }}>
+                                    <div style={{
+                                      width: '36px',
+                                      height: '36px',
+                                      borderRadius: '10px',
+                                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: '#ffffff',
+                                      fontSize: '14px',
+                                    }}>
+                                      <FontAwesomeIcon icon={faDoorOpen} />
+                                    </div>
+                                    <span style={{ fontWeight: '500' }}>{schedule.room || 'Room TBA'}</span>
+                                  </div>
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '10px',
+                                    background: '#f8fafc',
+                                    borderRadius: '10px',
+                                  }}>
+                                    <div style={{
+                                      width: '36px',
+                                      height: '36px',
+                                      borderRadius: '10px',
+                                      background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: '#ffffff',
+                                      fontSize: '14px',
+                                    }}>
+                                      <FontAwesomeIcon icon={faUser} />
+                                    </div>
+                                    <span style={{ fontWeight: '500' }}>{schedule.section}</span>
+                                  </div>
+                                </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#374151' }}>
-                                <FontAwesomeIcon icon={faCalendarAlt} style={{ color: '#6b7280', width: '16px' }} />
-                                <span>{schedule.day}</span>
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginTop: '20px',
+                                  paddingTop: '20px',
+                                  borderTop: '1px solid #e5e7eb',
+                                  flexWrap: 'wrap',
+                                  gap: '10px',
+                                }}>
+                                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    <button
+                                      onClick={() => handleEditClick(schedule)}
+                                      style={{
+                                        padding: '10px 16px',
+                                        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                        color: '#b45309',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        gap: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(180, 83, 9, 0.15)',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(180, 83, 9, 0.25)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(180, 83, 9, 0.15)';
+                                      }}
+                                    >
+                                      <FontAwesomeIcon icon={faEdit} />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => openRescheduleModal(schedule)}
+                                      style={{
+                                        padding: '10px 16px',
+                                        background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                                        color: '#3730a3',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        gap: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(55, 48, 163, 0.15)',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(55, 48, 163, 0.25)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(55, 48, 163, 0.15)';
+                                      }}
+                                    >
+                                      <FontAwesomeIcon icon={faCalendarPlus} />
+                                      Reschedule
+                                    </button>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <button
+                                      onClick={() => handleArchiveSchedule(schedule._id)}
+                                      style={{
+                                        padding: '10px 14px',
+                                        background: '#ffffff',
+                                        color: '#374151',
+                                        border: '2px solid #e5e7eb',
+                                        borderRadius: '10px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        transition: 'all 0.3s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#f9fafb';
+                                        e.currentTarget.style.borderColor = '#d1d5db';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = '#ffffff';
+                                        e.currentTarget.style.borderColor = '#e5e7eb';
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                      }}
+                                    >
+                                      <FontAwesomeIcon icon={faArchive} />
+                                      Archive
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#374151' }}>
-                                <FontAwesomeIcon icon={faClock} style={{ color: '#6b7280', width: '16px' }} />
-                                <span>{schedule.time}</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#374151' }}>
-                                <FontAwesomeIcon icon={faUser} style={{ color: '#6b7280', width: '16px' }} />
-                                <span>{schedule.instructor}</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#374151' }}>
-                                <FontAwesomeIcon icon={faDoorOpen} style={{ color: '#6b7280', width: '16px' }} />
-                                <span>{schedule.room}</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    </>
-                  );
-                })()}
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )
+                  })()
+                )}
               </div>
             </div>
           )}
-
-          {/* Notification removed - using Toast system now */}
-
-          {/* Add Schedule Popup */}
           {showAddSchedulePopup && (
             <div style={{
               position: 'fixed',
@@ -1212,10 +1511,7 @@ const ScheduleManagementDetails = () => {
                     Add Schedule
                   </h3>
                   <button
-                    onClick={() => {
-                      setShowAddSchedulePopup(false);
-                      setConflictDetails(null);
-                    }}
+                    onClick={closeAddSchedulePopup}
                     disabled={addingSchedule}
                     style={{
                       background: '#f3f4f6',
@@ -1321,7 +1617,11 @@ const ScheduleManagementDetails = () => {
                       name="day"
                       required
                       disabled={addingSchedule}
-                      onChange={() => setConflictDetails(null)}
+                      value={formDay}
+                      onChange={(e) => {
+                        setConflictDetails(null);
+                        setFormDay(e.target.value);
+                      }}
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -1354,6 +1654,7 @@ const ScheduleManagementDetails = () => {
                         required
                         disabled={addingSchedule}
                         onChange={() => setConflictDetails(null)}
+                        ref={startTimeInputRef}
                         style={{
                           width: '100%',
                           padding: '12px',
@@ -1376,6 +1677,7 @@ const ScheduleManagementDetails = () => {
                         required
                         disabled={addingSchedule}
                         onChange={() => setConflictDetails(null)}
+                        ref={endTimeInputRef}
                         style={{
                           width: '100%',
                           padding: '12px',
@@ -1387,6 +1689,64 @@ const ScheduleManagementDetails = () => {
                     </div>
                   </div>
 
+                  {formDay && (
+                    <div
+                      style={{
+                        marginBottom: '20px',
+                        padding: '16px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        background: '#f8fafc',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                          Available slots for {formDay}
+                        </span>
+                        {availabilityLoading && (
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Loading…</span>
+                        )}
+                      </div>
+                      {availabilitySlots.length === 0 ? (
+                        <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>
+                          No available slots based on the current selection.
+                        </p>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {availabilitySlots.map((slot, idx) => (
+                            <button
+                              key={`${slot.start}-${slot.end}-${idx}`}
+                              type="button"
+                              onClick={() => handleSlotSelect(slot)}
+                              disabled={addingSchedule}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '999px',
+                                border: '1px solid #c7d2fe',
+                                background: '#eef2ff',
+                                color: '#3730a3',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {slot.start} - {slot.end}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p style={{ marginTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                        Click a slot to autofill the start and end time fields.
+                      </p>
+                    </div>
+                  )}
+
                   <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
                       Instructor *
@@ -1395,7 +1755,11 @@ const ScheduleManagementDetails = () => {
                       name="instructor"
                       required
                       disabled={addingSchedule}
-                      onChange={() => setConflictDetails(null)}
+                      value={formInstructor}
+                      onChange={(e) => {
+                        setConflictDetails(null);
+                        setFormInstructor(e.target.value);
+                      }}
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -1421,7 +1785,11 @@ const ScheduleManagementDetails = () => {
                       name="room"
                       required
                       disabled={addingSchedule}
-                      onChange={() => setConflictDetails(null)}
+                      value={formRoom}
+                      onChange={(e) => {
+                        setConflictDetails(null);
+                        setFormRoom(e.target.value);
+                      }}
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -1449,10 +1817,7 @@ const ScheduleManagementDetails = () => {
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowAddSchedulePopup(false);
-                        setConflictDetails(null);
-                      }}
+                      onClick={closeAddSchedulePopup}
                       disabled={addingSchedule}
                       style={{
                         padding: '12px 24px',
@@ -1624,7 +1989,6 @@ const ScheduleManagementDetails = () => {
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={() => handleRestoreSchedule(s._id)} style={{ padding: '8px 12px', background: 'linear-gradient(90deg,#059669,#047857)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Restore</button>
-                            <button onClick={() => handleDeletePermanently(s._id)} style={{ padding: '8px 12px', background: '#ffe4e6', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer' }}>Delete Permanently</button>
                           </div>
                         </div>
                       ))}

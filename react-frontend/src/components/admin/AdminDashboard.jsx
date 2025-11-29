@@ -6,13 +6,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { io } from 'socket.io-client';
 import { useToast } from '../common/ToastProvider.jsx';
 import {
-  faLayerGroup,
   faChalkboardTeacher,
   faCalendarAlt,
   faUsers,
   faChartBar,
+  faBuilding,
 } from '@fortawesome/free-solid-svg-icons';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const AdminDashboard = () => {
   const { showToast } = useToast();
@@ -122,7 +122,7 @@ const AdminDashboard = () => {
 
   // Setup Socket.io for real-time updates (admin sees all changes)
   useEffect(() => {
-    const socket = io('http://localhost:5000', { autoConnect: true });
+    const socket = io(process.env.REACT_APP_API_BASE || 'http://localhost:5000', { autoConnect: true });
 
     socket.on('connect', () => {
       console.log('✅ Admin connected to real-time updates');
@@ -170,270 +170,538 @@ const AdminDashboard = () => {
     };
   }, [showToast]);
 
+  const statCards = [
+    {
+      label: 'Total Instructors',
+      value: summaryStats.totalInstructors,
+      subtitle: 'Active faculty members',
+      icon: faChalkboardTeacher,
+      gradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+      bgColor: '#fef3c7',
+      iconColor: '#f97316',
+    },
+    {
+      label: 'Total Schedules',
+      value: summaryStats.totalSchedules,
+      subtitle: 'Classes scheduled',
+      icon: faCalendarAlt,
+      gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+      bgColor: '#e0f2fe',
+      iconColor: '#0ea5e9',
+    },
+    {
+      label: 'Total Rooms',
+      value: summaryStats.totalRooms,
+      subtitle: 'Available facilities',
+      icon: faBuilding,
+      gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      bgColor: '#d1fae5',
+      iconColor: '#10b981',
+    },
+    {
+      label: 'Total Sections',
+      value: summaryStats.totalSections,
+      subtitle: 'Student groups',
+      icon: faUsers,
+      gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+      bgColor: '#e0e7ff',
+      iconColor: '#6366f1',
+    },
+  ];
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex' }}>
+    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content" style={{ flex: 1, padding: '1rem' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
         <Header title="Admin Dashboard" onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          <div className="welcome-section">
-            <h2>Welcome to the Admin Dashboard</h2>
-            <p>Manage your class scheduling system efficiently</p>
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
+          {/* Enhanced Welcome Section */}
+          <div style={{
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            color: '#ffffff',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-10%',
+              width: '200px',
+              height: '200px',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none'
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}>
+                <FontAwesomeIcon icon={faChartBar} style={{ fontSize: 28, color: '#fff' }} />
+              </div>
+              <div>
+                <h2 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+                }}>
+                  Welcome to the Admin Dashboard
+                </h2>
+                <p style={{
+                  margin: '6px 0 0 0',
+                  fontSize: '14px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: '500',
+                }}>
+                  Manage your class scheduling system efficiently with real-time insights and analytics
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Summary Overview */}
+          {/* Enhanced Summary Overview Cards */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '24px',
+            marginBottom: '40px'
           }}>
-            {/* Total Instructors Card */}
-            <div style={{
-              background: '#fff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              padding: '18px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              boxShadow: '0 6px 18px rgba(15, 23, 63, 0.06)'
-            }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Total Instructors</p>
-                <h3 style={{ margin: '6px 0 0', fontSize: '22px', color: '#0f172a' }}>{summaryStats.totalInstructors}</h3>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>Active faculty members</span>
+            {statCards.map((card, index) => (
+              <div
+                key={index}
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '20px',
+                  padding: '28px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+                }}
+              >
+                {/* Decorative gradient bar */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: card.gradient,
+                }} />
+                
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{
+                      margin: '0 0 8px 0',
+                      fontSize: '13px',
+                      color: '#64748b',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}>
+                      {card.label}
+                    </p>
+                    <h3 style={{
+                      margin: '0 0 6px 0',
+                      fontSize: '32px',
+                      fontWeight: '800',
+                      color: '#0f172a',
+                      lineHeight: '1.2',
+                    }}>
+                      {card.value}
+                    </h3>
+                    <span style={{
+                      fontSize: '13px',
+                      color: '#94a3b8',
+                      fontWeight: '500',
+                    }}>
+                      {card.subtitle}
+                    </span>
+                  </div>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '16px',
+                    background: card.bgColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '28px',
+                    color: card.iconColor,
+                    flexShrink: 0,
+                    boxShadow: `0 4px 12px ${card.iconColor}20`,
+                  }}>
+                    <FontAwesomeIcon icon={card.icon} />
+                  </div>
+                </div>
               </div>
-              <div style={{ 
-                padding: '12px', 
-                borderRadius: '14px', 
-                background: '#f97316',
-                color: '#fff', 
-                fontSize: '18px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <FontAwesomeIcon icon={faChalkboardTeacher} />
+            ))}
+          </div>
+
+          {/* Enhanced Data Visualizations */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+            gap: '24px',
+            marginTop: '20px'
+          }}>
+            {/* Schedule Distribution by Year - Enhanced */}
+            <div style={{
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '20px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '5px',
+                height: '100%',
+                background: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+              }} />
+              <div style={{ paddingLeft: '12px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '16px',
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                  }}>
+                    <FontAwesomeIcon icon={faChartBar} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      color: '#1e293b',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      margin: 0,
+                      letterSpacing: '-0.3px',
+                    }}>
+                      Schedules by Year Level
+                    </h3>
+                    <p style={{
+                      margin: '2px 0 0 0',
+                      fontSize: '12px',
+                      color: '#64748b',
+                    }}>
+                      Distribution across academic years
+                    </p>
+                  </div>
+                </div>
+                {scheduleByYear.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={scheduleByYear}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="year"
+                        stroke="#64748b"
+                        fontSize={12}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        stroke="#64748b"
+                        fontSize={12}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        }}
+                      />
+                      <Bar
+                        dataKey="schedules"
+                        fill="url(#colorGradient1)"
+                        radius={[12, 12, 0, 0]}
+                      />
+                      <defs>
+                        <linearGradient id="colorGradient1" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#2563eb" stopOpacity={0.8} />
+                        </linearGradient>
+                      </defs>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: '#94a3b8',
+                  }}>
+                    <FontAwesomeIcon icon={faChartBar} style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                    <p style={{ margin: 0, fontSize: '13px' }}>No data available</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Total Schedules Card */}
+            {/* Top Instructors by Workload - Enhanced */}
             <div style={{
-              background: '#fff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              padding: '18px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              boxShadow: '0 6px 18px rgba(15, 23, 63, 0.06)'
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '20px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
             }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Total Schedules</p>
-                <h3 style={{ margin: '6px 0 0', fontSize: '22px', color: '#0f172a' }}>{summaryStats.totalSchedules}</h3>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>Classes scheduled</span>
-              </div>
-              <div style={{ 
-                padding: '12px', 
-                borderRadius: '14px', 
-                background: '#0ea5e9',
-                color: '#fff', 
-                fontSize: '18px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <FontAwesomeIcon icon={faCalendarAlt} />
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '5px',
+                height: '100%',
+                background: 'linear-gradient(180deg, #f59e0b 0%, #d97706 100%)',
+              }} />
+              <div style={{ paddingLeft: '12px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '16px',
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                  }}>
+                    <FontAwesomeIcon icon={faChalkboardTeacher} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      color: '#1e293b',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      margin: 0,
+                      letterSpacing: '-0.3px',
+                    }}>
+                      Top Instructors by Classes
+                    </h3>
+                    <p style={{
+                      margin: '2px 0 0 0',
+                      fontSize: '12px',
+                      color: '#64748b',
+                    }}>
+                      Most active faculty members
+                    </p>
+                  </div>
+                </div>
+                {instructorWorkload.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={instructorWorkload} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis type="number" stroke="#64748b" fontSize={12} tickLine={false} />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={140}
+                        fontSize={12}
+                        stroke="#64748b"
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        }}
+                      />
+                      <Bar
+                        dataKey="classes"
+                        fill="url(#colorGradient2)"
+                        radius={[0, 12, 12, 0]}
+                      />
+                      <defs>
+                        <linearGradient id="colorGradient2" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#d97706" stopOpacity={0.8} />
+                        </linearGradient>
+                      </defs>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: '#94a3b8',
+                  }}>
+                    <FontAwesomeIcon icon={faChalkboardTeacher} style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                    <p style={{ margin: 0, fontSize: '13px' }}>No data available</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Total Rooms Card */}
+            {/* Room Usage Distribution - Enhanced */}
             <div style={{
-              background: '#fff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              padding: '18px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              boxShadow: '0 6px 18px rgba(15, 23, 63, 0.06)'
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '20px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
+              gridColumn: '1 / -1',
             }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Total Rooms</p>
-                <h3 style={{ margin: '6px 0 0', fontSize: '22px', color: '#0f172a' }}>{summaryStats.totalRooms}</h3>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>Available facilities</span>
-              </div>
-              <div style={{ 
-                padding: '12px', 
-                borderRadius: '14px', 
-                background: '#10b981',
-                color: '#fff', 
-                fontSize: '18px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <FontAwesomeIcon icon={faLayerGroup} />
-              </div>
-            </div>
-
-            {/* Total Sections Card */}
-            <div style={{
-              background: '#fff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              padding: '18px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              boxShadow: '0 6px 18px rgba(15, 23, 63, 0.06)'
-            }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Total Sections</p>
-                <h3 style={{ margin: '6px 0 0', fontSize: '22px', color: '#0f172a' }}>{summaryStats.totalSections}</h3>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>Student groups</span>
-              </div>
-              <div style={{ 
-                padding: '12px', 
-                borderRadius: '14px', 
-                background: '#1e293b',
-                color: '#fff', 
-                fontSize: '18px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <FontAwesomeIcon icon={faUsers} />
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '5px',
+                height: '100%',
+                background: 'linear-gradient(180deg, #10b981 0%, #059669 100%)',
+              }} />
+              <div style={{ paddingLeft: '12px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '16px',
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                  }}>
+                    <FontAwesomeIcon icon={faBuilding} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      color: '#1e293b',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      margin: 0,
+                      letterSpacing: '-0.3px',
+                    }}>
+                      Room Usage Distribution
+                    </h3>
+                    <p style={{
+                      margin: '2px 0 0 0',
+                      fontSize: '12px',
+                      color: '#64748b',
+                    }}>
+                      Facility utilization across campus
+                    </p>
+                  </div>
+                </div>
+                {roomUsage.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie
+                        data={roomUsage}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ room, percent }) => `${room}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="uses"
+                      >
+                        {roomUsage.map((entry, index) => {
+                          const colors = [
+                            '#3b82f6', '#f59e0b', '#10b981', '#ef4444',
+                            '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
+                            '#6366f1', '#14b8a6', '#f43f5e', '#a855f7'
+                          ];
+                          return (
+                            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                          );
+                        })}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{ paddingTop: '20px' }}
+                        iconType="circle"
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: '#94a3b8',
+                  }}>
+                    <FontAwesomeIcon icon={faBuilding} style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                    <p style={{ margin: 0, fontSize: '13px' }}>No data available</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Data Visualizations */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px', marginTop: '36px' }}>
-            {/* Schedule Distribution by Year */}
-            <div style={{
-              background: '#fff',
-              padding: '30px',
-              borderRadius: '18px',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              borderLeft: '5px solid #3b82f6',
-            }}>
-              <h3 style={{
-                color: '#1e293b',
-                fontSize: '18px',
-                fontWeight: '700',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}>
-                <FontAwesomeIcon icon={faChartBar} />
-                Schedules by Year Level
-              </h3>
-              {scheduleByYear.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={scheduleByYear}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="year" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="schedules" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>No data available</p>
-              )}
-            </div>
-
-            {/* Top Instructors by Workload */}
-            <div style={{
-              background: '#fff',
-              padding: '30px',
-              borderRadius: '18px',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              borderLeft: '5px solid #f59e0b',
-            }}>
-              <h3 style={{
-                color: '#1e293b',
-                fontSize: '18px',
-                fontWeight: '700',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}>
-                <FontAwesomeIcon icon={faChalkboardTeacher} />
-                Top Instructors by Classes
-              </h3>
-              {instructorWorkload.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={instructorWorkload} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={120} fontSize={12} />
-                    <Tooltip />
-                    <Bar dataKey="classes" fill="#f59e0b" radius={[0, 8, 8, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>No data available</p>
-              )}
-            </div>
-
-            {/* Room Usage Distribution */}
-            <div style={{
-              background: '#fff',
-              padding: '30px',
-              borderRadius: '18px',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              borderLeft: '5px solid #10b981',
-            }}>
-              <h3 style={{
-                color: '#1e293b',
-                fontSize: '18px',
-                fontWeight: '700',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}>
-                <FontAwesomeIcon icon={faLayerGroup} />
-                Room Usage Distribution
-              </h3>
-              {roomUsage.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={roomUsage}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      label={({ room, uses }) => `${room} (${uses})`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="uses"
-                    >
-                      {roomUsage.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'][index % 8]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>No data available</p>
-              )}
-            </div>
-          </div>
-
         </div>
       </main>
+
+      <style>{`
+        @media (max-width: 1200px) {
+          div[style*="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr))"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          div[style*="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr))"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

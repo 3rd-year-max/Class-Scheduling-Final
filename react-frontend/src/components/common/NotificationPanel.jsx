@@ -22,7 +22,7 @@ const NotificationPanel = () => {
 
   // Setup Socket.io listeners for real-time notifications
   useEffect(() => {
-    const newSocket = io('http://localhost:5000', { autoConnect: true });
+    const newSocket = io(process.env.REACT_APP_API_BASE || 'http://localhost:5000', { autoConnect: true });
 
     newSocket.on('connect', () => {
       console.log('✅ Notification panel connected to server');

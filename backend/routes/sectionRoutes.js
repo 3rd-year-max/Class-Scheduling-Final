@@ -64,9 +64,22 @@ router.get('/archived/list', async (req, res) => {
 // Archive section by ID (soft delete)
 router.patch('/:id/archive', async (req, res) => {
   try {
-    const section = await Section.findByIdAndUpdate(req.params.id, { archived: true }, { new: true });
+    const section = await Section.findById(req.params.id);
     if (!section) return res.status(404).json({ success: false, message: 'Section not found' });
-    res.json({ success: true, section });
+
+    section.archived = true;
+    await section.save();
+
+    const scheduleUpdate = await Schedule.updateMany(
+      { course: section.course, year: section.year, section: section.name },
+      { archived: true }
+    );
+
+    res.json({
+      success: true,
+      section,
+      affectedSchedules: scheduleUpdate.modifiedCount || 0,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error archiving section', error: error.message });
   }
@@ -75,9 +88,22 @@ router.patch('/:id/archive', async (req, res) => {
 // Restore archived section
 router.patch('/:id/restore', async (req, res) => {
   try {
-    const section = await Section.findByIdAndUpdate(req.params.id, { archived: false }, { new: true });
+    const section = await Section.findById(req.params.id);
     if (!section) return res.status(404).json({ success: false, message: 'Section not found' });
-    res.json({ success: true, section });
+
+    section.archived = false;
+    await section.save();
+
+    const scheduleUpdate = await Schedule.updateMany(
+      { course: section.course, year: section.year, section: section.name },
+      { archived: false }
+    );
+
+    res.json({
+      success: true,
+      section,
+      restoredSchedules: scheduleUpdate.modifiedCount || 0,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error restoring section', error: error.message });
   }
