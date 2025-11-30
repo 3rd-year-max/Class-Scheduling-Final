@@ -18,9 +18,12 @@ const scheduleSchema = new mongoose.Schema({
   optimisticConcurrency: true
 });
 
-// Index for conflict detection
+// Indexes for conflict detection and common queries
 scheduleSchema.index({ room: 1, day: 1, time: 1 });
 scheduleSchema.index({ instructor: 1, day: 1, time: 1 });
+scheduleSchema.index({ instructorEmail: 1, archived: 1 }); // For instructor workload queries
 scheduleSchema.index({ archived: 1 });
+scheduleSchema.index({ course: 1, year: 1, section: 1 }); // For course/year/section queries
+scheduleSchema.index({ googleCalendarEventId: 1 }); // For Google Calendar sync
 
 export default mongoose.model("Schedule", scheduleSchema);

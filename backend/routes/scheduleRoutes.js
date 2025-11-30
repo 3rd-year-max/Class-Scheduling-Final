@@ -1302,4 +1302,104 @@ router.post('/:id/sync', async (req, res) => {
   }
 });
 
+// GET /api/schedule/test/google-calendar - Test Google Calendar configuration
+router.get('/test/google-calendar', async (req, res) => {
+  try {
+    const hasClientEmail = !!process.env.GOOGLE_CLIENT_EMAIL;
+    const hasPrivateKey = !!process.env.GOOGLE_PRIVATE_KEY;
+    const hasProjectId = !!process.env.GOOGLE_PROJECT_ID;
+    
+    // Normalize private key to check format
+    const normalizePrivateKey = (key) => {
+      if (!key) return null;
+      let normalized = key.trim();
+      if ((normalized.startsWith('"') && normalized.endsWith('"')) || 
+          (normalized.startsWith("'") && normalized.endsWith("'"))) {
+        normalized = normalized.slice(1, -1);
+      }
+      normalized = normalized.replace(/\\n/g, '\n');
+      normalized = normalized.replace(/\\\\n/g, '\n');
+      return normalized;
+    };
+    
+    const privateKeyNormalized = hasPrivateKey ? normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY) : null;
+    const hasValidKeyFormat = privateKeyNormalized && 
+                              privateKeyNormalized.includes('BEGIN PRIVATE KEY') && 
+                              privateKeyNormalized.includes('END PRIVATE KEY');
+    
+    const configured = isGoogleCalendarConfigured();
+    
+    const envStatus = {
+      GOOGLE_CLIENT_EMAIL: hasClientEmail ? '✅ Set' : '❌ Missing',
+      GOOGLE_PRIVATE_KEY: hasPrivateKey 
+        ? (hasValidKeyFormat ? '✅ Set (Valid Format)' : '⚠️ Set (Invalid Format)') 
+        : '❌ Missing',
+      GOOGLE_PROJECT_ID: hasProjectId ? '✅ Set' : '❌ Missing'
+    };
+    
+    if (configured) {
+      // Try to initialize the calendar client to verify credentials
+      try {
+        const { google } = await import('googleapis');
+        
+        // Use the same normalization as the service
+        const normalizedKey = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+        
+        const auth = new google.auth.GoogleAuth({
+          credentials: {
+            client_email: process.env.GOOGLE_CLIENT_EMAIL?.trim(),
+            private_key: normalizedKey,
+            project_id: process.env.GOOGLE_PROJECT_ID?.trim(),
+          },
+          scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        
+        // Try to get the client to verify credentials are valid
+        const authClient = await auth.getClient();
+        
+        return res.json({
+          configured: true,
+          env_variables: envStatus,
+          credentials_valid: true,
+          service_account: process.env.GOOGLE_CLIENT_EMAIL?.trim(),
+          instructions: "✅ Configured! Events will be created in instructor calendars. Make sure each instructor's calendar is shared with the service account."
+        });
+      } catch (authError) {
+        return res.json({
+          configured: false,
+          env_variables: envStatus,
+          credentials_valid: false,
+          error: authError.message,
+          error_details: authError.toString(),
+          instructions: "⚠️ Environment variables are set but credentials may be invalid. Check your GOOGLE_PRIVATE_KEY format. Make sure it's in quotes and uses \\n for newlines."
+        });
+      }
+    } else {
+      let instructions = "❌ Google Calendar is not configured. ";
+      if (!hasClientEmail || !hasPrivateKey || !hasProjectId) {
+        instructions += "Set GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_PROJECT_ID in your .env file. ";
+      }
+      if (hasPrivateKey && !hasValidKeyFormat) {
+        instructions += "⚠️ GOOGLE_PRIVATE_KEY format is invalid - it must include 'BEGIN PRIVATE KEY' and 'END PRIVATE KEY'. Make sure it's in quotes and uses \\n for newlines. ";
+      }
+      instructions += "Make sure to restart the server after adding them.";
+      
+      return res.json({
+        configured: false,
+        env_variables: envStatus,
+        credentials_valid: false,
+        instructions: instructions
+      });
+    }
+  } catch (error) {
+    console.error('Error testing Google Calendar configuration:', error);
+    res.status(500).json({
+      configured: false,
+      error: error.message,
+      error_details: error.toString(),
+      instructions: "Error checking configuration. See server logs for details."
+    });
+  }
+});
+
 export default router;

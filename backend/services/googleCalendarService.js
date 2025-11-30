@@ -3,17 +3,76 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Initialize Google Calendar API using service account (calendar must be shared with this account)
-const auth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    project_id: process.env.GOOGLE_PROJECT_ID,
-  },
-  scopes: ['https://www.googleapis.com/auth/calendar'],
-});
+// Helper function to normalize private key format
+const normalizePrivateKey = (key) => {
+  if (!key) return null;
+  
+  // Remove surrounding quotes if present
+  let normalized = key.trim();
+  if ((normalized.startsWith('"') && normalized.endsWith('"')) || 
+      (normalized.startsWith("'") && normalized.endsWith("'"))) {
+    normalized = normalized.slice(1, -1);
+  }
+  
+  // Handle different newline formats
+  // Replace literal \n with actual newlines
+  normalized = normalized.replace(/\\n/g, '\n');
+  // Replace escaped newlines
+  normalized = normalized.replace(/\\\\n/g, '\n');
+  // Ensure proper line breaks
+  if (!normalized.includes('\n') && normalized.includes('\\n')) {
+    normalized = normalized.replace(/\\n/g, '\n');
+  }
+  
+  return normalized;
+};
 
-const calendar = google.calendar({ version: 'v3', auth });
+// Helper function to validate and get credentials
+const getGoogleCredentials = () => {
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL?.trim();
+  const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY;
+  const projectId = process.env.GOOGLE_PROJECT_ID?.trim();
+  
+  if (!clientEmail || !privateKeyRaw || !projectId) {
+    return null;
+  }
+  
+  const privateKey = normalizePrivateKey(privateKeyRaw);
+  
+  if (!privateKey || !privateKey.includes('BEGIN PRIVATE KEY')) {
+    console.error('⚠️ GOOGLE_PRIVATE_KEY format is invalid. It must include "BEGIN PRIVATE KEY" and "END PRIVATE KEY"');
+    return null;
+  }
+  
+  return {
+    client_email: clientEmail,
+    private_key: privateKey,
+    project_id: projectId
+  };
+};
+
+// Initialize Google Calendar API using service account (calendar must be shared with this account)
+let auth = null;
+let calendar = null;
+
+try {
+  const credentials = getGoogleCredentials();
+  if (credentials) {
+    auth = new google.auth.GoogleAuth({
+      credentials: credentials,
+      scopes: ['https://www.googleapis.com/auth/calendar'],
+    });
+    
+    calendar = google.calendar({ version: 'v3', auth });
+    console.log('✅ Google Calendar API initialized successfully');
+  } else {
+    console.log('⚠️ Google Calendar API not initialized - credentials missing or invalid');
+  }
+} catch (error) {
+  console.error('❌ Error initializing Google Calendar API:', error.message);
+  auth = null;
+  calendar = null;
+}
 
 /**
  * Convert day string to day of week number (0 = Sunday, 1 = Monday, etc.)
@@ -158,6 +217,26 @@ const scheduleToDate = (day, time) => {
  * Create a recurring event in Google Calendar
  */
 export const createCalendarEvent = async (schedule, instructorEmail) => {
+  // Re-initialize if not already done
+  if (!auth || !calendar) {
+    const credentials = getGoogleCredentials();
+    if (credentials) {
+      try {
+        auth = new google.auth.GoogleAuth({
+          credentials: credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        calendar = google.calendar({ version: 'v3', auth });
+      } catch (initError) {
+        console.error('❌ Failed to initialize Google Calendar API:', initError.message);
+        return null;
+      }
+    } else {
+      console.warn('⚠️ Google Calendar credentials not available');
+      return null;
+    }
+  }
+  
   try {
     // Parse start and end time
     const timeParts = schedule.time.split(' - ');
@@ -251,6 +330,25 @@ export const listCalendarEvents = async (instructorEmail, { timeMin, timeMax, ma
     return [];
   }
 
+  // Re-initialize if not already done
+  if (!auth || !calendar) {
+    const credentials = getGoogleCredentials();
+    if (credentials) {
+      try {
+        auth = new google.auth.GoogleAuth({
+          credentials: credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        calendar = google.calendar({ version: 'v3', auth });
+      } catch (initError) {
+        console.error('❌ Failed to initialize Google Calendar API:', initError.message);
+        return [];
+      }
+    } else {
+      return [];
+    }
+  }
+
   try {
     const now = new Date();
     const params = {
@@ -293,6 +391,25 @@ export const getCalendarEvent = async (instructorEmail, eventId) => {
     return null;
   }
 
+  // Re-initialize if not already done
+  if (!auth || !calendar) {
+    const credentials = getGoogleCredentials();
+    if (credentials) {
+      try {
+        auth = new google.auth.GoogleAuth({
+          credentials: credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        calendar = google.calendar({ version: 'v3', auth });
+      } catch (initError) {
+        console.error('❌ Failed to initialize Google Calendar API:', initError.message);
+        return null;
+      }
+    } else {
+      return null;
+    }
+  }
+
   try {
     const res = await calendar.events.get({ calendarId: instructorEmail, eventId });
     return res.data;
@@ -318,6 +435,26 @@ export const getCalendarEvent = async (instructorEmail, eventId) => {
  * Update an existing Google Calendar event
  */
 export const updateCalendarEvent = async (eventId, schedule, instructorEmail) => {
+  // Re-initialize if not already done
+  if (!auth || !calendar) {
+    const credentials = getGoogleCredentials();
+    if (credentials) {
+      try {
+        auth = new google.auth.GoogleAuth({
+          credentials: credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        calendar = google.calendar({ version: 'v3', auth });
+      } catch (initError) {
+        console.error('❌ Failed to initialize Google Calendar API:', initError.message);
+        return null;
+      }
+    } else {
+      console.warn('⚠️ Google Calendar credentials not available');
+      return null;
+    }
+  }
+  
   try {
     if (!eventId) {
       throw new Error('Event ID is required for update');
@@ -405,6 +542,26 @@ export const updateCalendarEvent = async (eventId, schedule, instructorEmail) =>
  * Delete a Google Calendar event
  */
 export const deleteCalendarEvent = async (eventId, instructorEmail) => {
+  // Re-initialize if not already done
+  if (!auth || !calendar) {
+    const credentials = getGoogleCredentials();
+    if (credentials) {
+      try {
+        auth = new google.auth.GoogleAuth({
+          credentials: credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        calendar = google.calendar({ version: 'v3', auth });
+      } catch (initError) {
+        console.error('❌ Failed to initialize Google Calendar API:', initError.message);
+        return;
+      }
+    } else {
+      console.warn('⚠️ Google Calendar credentials not available');
+      return;
+    }
+  }
+  
   try {
     if (!eventId) {
       console.warn('⚠️ No event ID provided for deletion');
@@ -430,26 +587,57 @@ export const deleteCalendarEvent = async (eventId, instructorEmail) => {
   }
 };
 
-// Cache configuration status
+// Cache configuration status (but allow re-checking)
 let configStatusChecked = false;
+let lastConfigCheck = null;
 
 /**
  * Check if Google Calendar is configured
+ * This function can be called multiple times and will re-check if env vars change
  */
 export const isGoogleCalendarConfigured = () => {
-  const configured = !!(
-    process.env.GOOGLE_CLIENT_EMAIL &&
-    process.env.GOOGLE_PRIVATE_KEY &&
-    process.env.GOOGLE_PROJECT_ID
-  );
+  // Force reload dotenv to pick up any changes
+  dotenv.config();
   
-  // Only log once at startup
-  if (!configStatusChecked) {
+  const credentials = getGoogleCredentials();
+  const configured = !!credentials;
+  
+  // Log status changes or on first check
+  const currentCheck = {
+    configured,
+    hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+    hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+    hasProjectId: !!process.env.GOOGLE_PROJECT_ID
+  };
+  
+  const statusChanged = !lastConfigCheck || 
+    lastConfigCheck.configured !== currentCheck.configured ||
+    lastConfigCheck.hasClientEmail !== currentCheck.hasClientEmail ||
+    lastConfigCheck.hasPrivateKey !== currentCheck.hasPrivateKey ||
+    lastConfigCheck.hasProjectId !== currentCheck.hasProjectId;
+  
+  if (!configStatusChecked || statusChanged) {
     if (!configured) {
-      console.log('⚠️  Google Calendar is not configured. Set GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_PROJECT_ID in your .env file');
+      console.log('⚠️  Google Calendar is not configured.');
+      if (!currentCheck.hasClientEmail) console.log('   ❌ GOOGLE_CLIENT_EMAIL is missing');
+      if (!currentCheck.hasPrivateKey) console.log('   ❌ GOOGLE_PRIVATE_KEY is missing');
+      if (!currentCheck.hasProjectId) console.log('   ❌ GOOGLE_PROJECT_ID is missing');
+      
+      // Check if private key format is wrong
+      if (currentCheck.hasPrivateKey) {
+        const normalized = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+        if (!normalized || !normalized.includes('BEGIN PRIVATE KEY')) {
+          console.log('   ⚠️  GOOGLE_PRIVATE_KEY format is invalid. It must include "BEGIN PRIVATE KEY" and "END PRIVATE KEY"');
+          console.log('   💡 Tip: Make sure the private key is in quotes and uses \\n for newlines');
+          console.log('   💡 Example: GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\nYour\\nKey\\n-----END PRIVATE KEY-----\\n"');
+        }
+      }
+      
+      console.log('   Set these in your .env file and restart the server.');
     } else {
-      console.log(`✅ Google Calendar is configured with service account: ${process.env.GOOGLE_CLIENT_EMAIL}`);
+      console.log(`✅ Google Calendar is configured with service account: ${credentials.client_email}`);
     }
+    lastConfigCheck = currentCheck;
     configStatusChecked = true;
   }
   

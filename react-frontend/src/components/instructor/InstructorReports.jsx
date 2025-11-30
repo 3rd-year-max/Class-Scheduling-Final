@@ -664,25 +664,95 @@ const InstructorReports = () => {
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <div className="dashboard-content" style={{ marginTop: '140px' }}>
           {/* Welcome Section */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <FontAwesomeIcon icon={faFileAlt} style={{ fontSize: 32, color: '#f97316' }} />
-              <h2 style={{ margin: 0 }}>Class Reports</h2>
+          <div className="welcome-section" style={{ 
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(12px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                <FontAwesomeIcon icon={faFileAlt} style={{ fontSize: 24, color: '#fff' }} />
+              </div>
+              <h2 style={{ 
+                margin: 0, 
+                color: '#ffffff', 
+                fontSize: '24px', 
+                fontWeight: '800',
+                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                letterSpacing: '-0.3px'
+              }}>
+                Class Reports
+              </h2>
             </div>
-            <p style={{ margin: 0 }}>Teaching Reports & Schedules</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+            <p style={{ 
+              margin: '0 0 16px 0', 
+              color: 'rgba(255,255,255,0.95)', 
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              Teaching Reports & Schedules
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 16px', background: 'linear-gradient(90deg,#0f2c63 40%,#f97316 100%)', borderRadius: 8, color: "#fff", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(249, 115, 22, 0.2)"
+                padding: '6px 14px', 
+                background: 'rgba(255, 255, 255, 0.25)', 
+                backdropFilter: 'blur(8px)',
+                borderRadius: 8, 
+                color: "#fff", 
+                fontWeight: 700, 
+                fontSize: 13, 
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                border: '1px solid rgba(255, 255, 255, 0.3)'
               }}>
-                <FontAwesomeIcon icon={faUser} style={{ fontSize: 14 }} />
+                <FontAwesomeIcon icon={faUser} style={{ fontSize: 13 }} />
                 {instructorData.firstname} {instructorData.lastname}
               </div>
               {instructorData.department && (
-                <div style={{ padding: '6px 12px', background: '#f3f4f6', borderRadius: 8, color: '#854d0e', fontWeight: 700, fontSize: 12, border: '1.5px solid #f97316' }}>{instructorData.department}</div>
+                <div style={{ 
+                  padding: '6px 12px', 
+                  background: 'rgba(255, 255, 255, 0.25)', 
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: 8, 
+                  color: '#fff', 
+                  fontWeight: 700, 
+                  fontSize: 12, 
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                }}>
+                  {instructorData.department}
+                </div>
               )}
               {instructorData.instructorId && (
-                <span style={{ padding: "6px 12px", background: "#0f2c63", color: "#fff", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>ID-{instructorData.instructorId}</span>
+                <span style={{ 
+                  padding: "6px 12px", 
+                  background: "rgba(255, 255, 255, 0.25)", 
+                  backdropFilter: 'blur(8px)',
+                  color: "#fff", 
+                  borderRadius: 8, 
+                  fontSize: 12, 
+                  fontWeight: 700,
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                }}>
+                  ID-{instructorData.instructorId}
+                </span>
               )}
             </div>
           </div>

@@ -22,7 +22,6 @@ const InstructorDashboard = () => {
   });
 
   const [allSchedules, setAllSchedules] = useState([]);
-  const [calendarEvents, setCalendarEvents] = useState([]);
   const [syncedSchedules, setSyncedSchedules] = useState([]);
   const [calendarConfigured, setCalendarConfigured] = useState(false);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
@@ -305,13 +304,18 @@ const InstructorDashboard = () => {
 
         if (response.ok) {
           const data = await response.json();
-          setCalendarEvents(data.events || []);
           setSyncedSchedules(data.syncedSchedules || []);
-          setCalendarConfigured(data.configured || false);
+          setCalendarConfigured(data.configured !== false); // Default to true if not explicitly false
         } else if (response.status === 503) {
           // Google Calendar not configured
+          const errorData = await response.json().catch(() => ({}));
+          console.warn('Google Calendar not configured:', errorData);
           setCalendarConfigured(false);
-          setCalendarEvents([]);
+          setSyncedSchedules([]);
+        } else {
+          // Other error - still try to get configured status
+          const errorData = await response.json().catch(() => ({}));
+          setCalendarConfigured(errorData.configured === true);
           setSyncedSchedules([]);
         }
       } catch (error) {
@@ -417,12 +421,95 @@ const InstructorDashboard = () => {
     };
   }, [userEmail, showToast]);
 
+  // Convert synced schedules to upcoming events format (must be before early return)
+  const upcomingScheduleEvents = useMemo(() => {
+    if (!syncedSchedules || syncedSchedules.length === 0) return [];
+    
+    // Helper functions defined inside useMemo to avoid dependency issues
+    const dayToDayOfWeek = (dayName) => {
+      const dayMap = {
+        'sunday': 0, 'sun': 0,
+        'monday': 1, 'mon': 1,
+        'tuesday': 2, 'tue': 2, 'tues': 2,
+        'wednesday': 3, 'wed': 3, 'weds': 3,
+        'thursday': 4, 'thu': 4, 'thur': 4, 'thurs': 4,
+        'friday': 5, 'fri': 5,
+        'saturday': 6, 'sat': 6,
+      };
+      return dayMap[dayName?.toLowerCase()] ?? null;
+    };
+
+    const parseTime = (timeStr) => {
+      if (!timeStr) return null;
+      const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!match) return null;
+      let [, hours, minutes, period] = match;
+      hours = parseInt(hours);
+      minutes = parseInt(minutes);
+      if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
+      if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+      return { hours, minutes };
+    };
+
+    const getNextScheduleOccurrence = (schedule) => {
+      const dayName = schedule.day;
+      const timeStr = schedule.time;
+      
+      const dayOfWeek = dayToDayOfWeek(dayName);
+      if (dayOfWeek === null) return null;
+      
+      const timeData = parseTime(timeStr?.split(' - ')[0]?.trim());
+      if (!timeData) return null;
+      
+      const now = new Date();
+      const currentDay = now.getDay();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      // Calculate days until next occurrence
+      let daysUntil = dayOfWeek - currentDay;
+      if (daysUntil < 0 || (daysUntil === 0 && (currentHour * 60 + currentMinute >= timeData.hours * 60 + timeData.minutes))) {
+        daysUntil += 7;
+      }
+      
+      const nextDate = new Date(now);
+      nextDate.setDate(now.getDate() + daysUntil);
+      nextDate.setHours(timeData.hours, timeData.minutes, 0, 0);
+      
+      return nextDate;
+    };
+    
+    const events = syncedSchedules
+      .map(schedule => {
+        const nextOccurrence = getNextScheduleOccurrence(schedule);
+        if (!nextOccurrence) return null;
+        
+        return {
+          id: schedule._id,
+          summary: schedule.subject || 'Class',
+          start: {
+            dateTime: nextOccurrence.toISOString(),
+            date: null
+          },
+          location: schedule.room || '',
+          description: `Course: ${schedule.course || ''}\nYear: ${schedule.year || ''}\nSection: ${schedule.section || ''}`,
+          schedule: schedule // Keep original schedule data
+        };
+      })
+      .filter(event => event !== null)
+      .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime))
+      .filter(event => new Date(event.start.dateTime) >= new Date()); // Only future events
+    
+    return events;
+  }, [syncedSchedules]);
+
   if (!userEmail) {
     return <p>Loading user information...</p>;
   }
 
   // Format date for display
   const formatEventDate = (dateString) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       weekday: 'short', 
@@ -432,7 +519,6 @@ const InstructorDashboard = () => {
       minute: '2-digit'
     });
   };
-
 
   // Get Google Calendar URL
   const getGoogleCalendarUrl = () => {
@@ -446,19 +532,67 @@ const InstructorDashboard = () => {
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <div className="dashboard-content responsive-shell" style={{ marginTop: '140px' }}>
           {/* Welcome Section */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <FontAwesomeIcon icon={faUser} style={{ fontSize: 32, color: '#f97316' }} />
-              <h2 style={{ margin: 0 }}>
+          <div className="welcome-section" style={{ 
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(12px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                <FontAwesomeIcon icon={faUser} style={{ fontSize: 24, color: '#fff' }} />
+              </div>
+              <h2 style={{ 
+                margin: 0, 
+                color: '#ffffff', 
+                fontSize: '24px', 
+                fontWeight: '800',
+                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                letterSpacing: '-0.3px'
+              }}>
                 Welcome, {instructorData.firstname && instructorData.lastname 
                   ? `${instructorData.firstname} ${instructorData.lastname}`
                   : instructorData.firstname || instructorData.lastname || 'Instructor'}!
               </h2>
             </div>
-            <p style={{ margin: 0 }}>
-              Here's your dashboard overview and today's class schedule.
+            <p style={{ 
+              margin: 0, 
+              color: 'rgba(255,255,255,0.95)', 
+              fontSize: '14px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              <span>Here's your dashboard overview and today's class schedule.</span>
               {instructorData.instructorId && (
-                <span style={{ marginLeft: '12px', padding: '4px 10px', background: '#e0e7ff', borderRadius: '6px', fontSize: '13px', fontWeight: '600', color: '#4f46e5' }}>
+                <span style={{ 
+                  padding: '4px 12px', 
+                  background: 'rgba(255, 255, 255, 0.25)', 
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '8px', 
+                  fontSize: '12px', 
+                  fontWeight: '700', 
+                  color: '#fff',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}>
                   ID-{instructorData.instructorId}
                 </span>
               )}
@@ -466,65 +600,232 @@ const InstructorDashboard = () => {
           </div>
 
 
-          {/* Weekly Workload Summary */}
-          <div className="workload-grid">
-            <article className="workload-summary-card">
-              <div className="workload-summary-card__meta">
-                <p>Classes This Week</p>
-                <h3>{weeklyWorkload.classes}</h3>
-                <span>{weeklyWorkload.daysWithClasses} active day(s)</span>
+          {/* Enhanced Weekly Workload Summary */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '20px',
+            marginBottom: '32px'
+          }}>
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '18px',
+              padding: '24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(249, 115, 22, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+            }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Classes This Week
+                </p>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: '1.2' }}>
+                  {weeklyWorkload.classes}
+                </h3>
+                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
+                  {weeklyWorkload.daysWithClasses} active day(s)
+                </span>
               </div>
-              <div className="workload-summary-card__icon workload-summary-card__icon--orange">
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: '#fff',
+                flexShrink: 0,
+                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
+              }}>
                 <FontAwesomeIcon icon={faCalendarWeek} />
               </div>
-            </article>
+            </div>
 
-            <article className="workload-summary-card">
-              <div className="workload-summary-card__meta">
-                <p>Total Hours</p>
-                <h3>{(weeklyWorkload.totalMinutes / 60).toFixed(1)}h</h3>
-                <span>{weeklyWorkload.totalMinutes} total minutes</span>
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '18px',
+              padding: '24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(14, 165, 233, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+            }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Total Hours
+                </p>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: '1.2' }}>
+                  {(weeklyWorkload.totalMinutes / 60).toFixed(1)}h
+                </h3>
+                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
+                  {weeklyWorkload.totalMinutes} total minutes
+                </span>
               </div>
-              <div className="workload-summary-card__icon workload-summary-card__icon--sky">
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: '#fff',
+                flexShrink: 0,
+                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)',
+              }}>
                 <FontAwesomeIcon icon={faClock} />
               </div>
-            </article>
+            </div>
 
-            <article className="workload-summary-card">
-              <div className="workload-summary-card__meta">
-                <p>Avg Hours / Day</p>
-                <h3>{(weeklyWorkload.averageDailyMinutes / 60 || 0).toFixed(2)}h</h3>
-                <span>Based on teaching days</span>
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '18px',
+              padding: '24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(16, 185, 129, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+            }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Avg Hours / Day
+                </p>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: '1.2' }}>
+                  {(weeklyWorkload.averageDailyMinutes / 60 || 0).toFixed(2)}h
+                </h3>
+                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
+                  Based on teaching days
+                </span>
               </div>
-              <div className="workload-summary-card__icon workload-summary-card__icon--green">
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: '#fff',
+                flexShrink: 0,
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+              }}>
                 <FontAwesomeIcon icon={faCalendarAlt} />
               </div>
-            </article>
+            </div>
 
-            <article className="workload-summary-card">
-              <div className="workload-summary-card__meta">
-                <p>Busiest Day</p>
-                <h3>{busiestDay ? busiestDay.label : '—'}</h3>
-                <span>
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '18px',
+              padding: '24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(30, 41, 59, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+            }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Busiest Day
+                </p>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: '1.2' }}>
+                  {busiestDay ? busiestDay.label : '—'}
+                </h3>
+                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
                   {busiestDay
                     ? `${busiestDay.classes} class(es) · ${formatMinutesVerbose(busiestDay.minutes)}`
                     : 'No classes yet'}
                 </span>
               </div>
-              <div className="workload-summary-card__icon workload-summary-card__icon--slate">
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: '#fff',
+                flexShrink: 0,
+                boxShadow: '0 4px 12px rgba(30, 41, 59, 0.3)',
+              }}>
                 <FontAwesomeIcon icon={faFilter} />
               </div>
-            </article>
+            </div>
           </div>
 
           {/* To-Do List Section */}
           <div style={{ 
-            background: 'white', 
-            borderRadius: '16px', 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', 
+            borderRadius: '12px', 
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)', 
             padding: '24px',
-            marginBottom: '30px',
-            border: '2px solid #e5e7eb'
+            marginBottom: '24px',
+            border: '1px solid rgba(15, 44, 99, 0.1)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontSize: '20px', fontWeight: '700' }}>
@@ -1042,26 +1343,35 @@ const InstructorDashboard = () => {
               ) : calendarMinimized ? (
                 <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <strong style={{ color: '#0f172a' }}>{calendarEvents[0]?.summary || (calendarEvents.length > 0 ? 'Upcoming event' : 'No events')}</strong>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>{calendarEvents.length > 0 ? formatEventDate(calendarEvents[0]?.start?.dateTime || calendarEvents[0]?.start?.date || '') : 'No upcoming calendar events'}</span>
+                    <strong style={{ color: '#0f172a' }}>{upcomingScheduleEvents[0]?.summary || (upcomingScheduleEvents.length > 0 ? 'Upcoming class' : 'No events')}</strong>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>
+                      {upcomingScheduleEvents.length > 0 
+                        ? formatEventDate(upcomingScheduleEvents[0]?.start?.dateTime || '') 
+                        : 'No upcoming classes'}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>{calendarEvents.length} events</span>
+                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>{upcomingScheduleEvents.length} upcoming</span>
                     <button onClick={() => setCalendarMinimized(false)} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}>Show details</button>
                   </div>
                 </div>
-              ) : calendarEvents.length > 0 ? (
+              ) : upcomingScheduleEvents.length > 0 ? (
                 <div className="calendar-events">
-                  {calendarEvents.slice(0, 5).map((event, index) => (
+                  {upcomingScheduleEvents.slice(0, 5).map((event, index) => (
                     <div key={event.id || index} className="calendar-event">
-                      <h5>{event.summary || 'Untitled Event'}</h5>
+                      <h5>{event.summary || 'Class'}</h5>
                       <div className="calendar-event__meta">
                         <span>
-                          <FontAwesomeIcon icon={faClock} /> {formatEventDate(event.start?.dateTime || event.start?.date || '')}
+                          <FontAwesomeIcon icon={faClock} /> {formatEventDate(event.start?.dateTime || '')}
                         </span>
                         {event.location && (
                           <span>
                             <FontAwesomeIcon icon={faMapMarkerAlt} /> {event.location}
+                          </span>
+                        )}
+                        {event.schedule?.day && (
+                          <span>
+                            <FontAwesomeIcon icon={faCalendarAlt} /> {event.schedule.day}
                           </span>
                         )}
                       </div>
@@ -1070,18 +1380,23 @@ const InstructorDashboard = () => {
                           {event.description.split('\n')[0]}
                         </p>
                       )}
+                      {event.schedule?.time && (
+                        <p className="calendar-event__description" style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                          Time: {event.schedule.time}
+                        </p>
+                      )}
                     </div>
                   ))}
-                  {calendarEvents.length > 5 && (
+                  {upcomingScheduleEvents.length > 5 && (
                     <p className="calendar-more">
-                      And {calendarEvents.length - 5} more events. View all in Google Calendar.
+                      And {upcomingScheduleEvents.length - 5} more upcoming classes. View all in Google Calendar.
                     </p>
                   )}
                 </div>
               ) : (
                 <div className="calendar-empty">
                   <FontAwesomeIcon icon={faCalendarAlt} style={{ fontSize: '36px', color: '#cbd5f5', marginBottom: '8px' }} />
-                  <p>No upcoming calendar events. Your schedules sync automatically.</p>
+                  <p>No upcoming classes scheduled. Your schedules sync automatically to Google Calendar.</p>
                 </div>
               )}
 

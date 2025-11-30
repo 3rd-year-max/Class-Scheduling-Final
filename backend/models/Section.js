@@ -12,9 +12,10 @@ const sectionSchema = new mongoose.Schema({
   optimisticConcurrency: true
 });
 
-// Index for faster queries and uniqueness constraint
-sectionSchema.index({ course: 1, year: 1, name: 1 });
+// Indexes for faster queries and uniqueness constraint
+sectionSchema.index({ course: 1, year: 1, name: 1 }, { unique: true }); // Ensure unique sections
 sectionSchema.index({ archived: 1 });
+sectionSchema.index({ course: 1, year: 1 }); // For course/year queries
 
 const Section = mongoose.model('Section', sectionSchema);
 export default Section;

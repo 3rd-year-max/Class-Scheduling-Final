@@ -8,10 +8,12 @@ export const AlertsProvider = ({ children }) => {
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
+    const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+    
     // Fetch initial alerts
     const fetchAlerts = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/admin/alerts');
+        const res = await axios.get(`${apiBase}/api/admin/alerts`);
         if (res.data.success) {
           setAlerts(res.data.alerts);
         }
@@ -22,7 +24,7 @@ export const AlertsProvider = ({ children }) => {
     fetchAlerts();
 
     // Setup socket.io client, connect to backend server
-    const socket = io('http://localhost:5000');  // Adjust URL if needed
+    const socket = io(apiBase);
 
     // Listen for 'new-alert' events from backend
     socket.on('new-alert', alert => {

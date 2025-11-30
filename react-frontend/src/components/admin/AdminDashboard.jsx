@@ -11,11 +11,17 @@ import {
   faUsers,
   faChartBar,
   faBuilding,
+  faPlus,
+  faFileAlt,
+  faCog,
+  faArrowRight,
 } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const AdminDashboard = () => {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [summaryStats, setSummaryStats] = useState({
     totalInstructors: 0,
@@ -266,6 +272,141 @@ const AdminDashboard = () => {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Quick Actions Section */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+            marginBottom: '32px'
+          }}>
+            <button
+              onClick={() => navigate('/admin/schedule-management')}
+              style={{
+                background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 50%, #f97316 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '14px',
+                padding: '18px 24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontWeight: '600',
+                fontSize: '15px',
+                boxShadow: '0 4px 16px rgba(15, 44, 99, 0.2)',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(15, 44, 99, 0.2)';
+              }}
+            >
+              <FontAwesomeIcon icon={faPlus} style={{ fontSize: '18px' }} />
+              <span>New Schedule</span>
+              <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '12px', marginLeft: 'auto', opacity: 0.8 }} />
+            </button>
+            <button
+              onClick={() => navigate('/admin/faculty-management')}
+              style={{
+                background: 'white',
+                color: '#0f2c63',
+                border: '2px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '18px 24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontWeight: '600',
+                fontSize: '15px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.borderColor = '#f97316';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(249, 115, 22, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+              }}
+            >
+              <FontAwesomeIcon icon={faChalkboardTeacher} style={{ fontSize: '18px', color: '#f97316' }} />
+              <span>Manage Faculty</span>
+              <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '12px', marginLeft: 'auto', opacity: 0.6 }} />
+            </button>
+            <button
+              onClick={() => navigate('/admin/reports')}
+              style={{
+                background: 'white',
+                color: '#0f2c63',
+                border: '2px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '18px 24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontWeight: '600',
+                fontSize: '15px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.borderColor = '#f97316';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(249, 115, 22, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+              }}
+            >
+              <FontAwesomeIcon icon={faFileAlt} style={{ fontSize: '18px', color: '#0ea5e9' }} />
+              <span>View Reports</span>
+              <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '12px', marginLeft: 'auto', opacity: 0.6 }} />
+            </button>
+            <button
+              onClick={() => navigate('/admin/settings')}
+              style={{
+                background: 'white',
+                color: '#0f2c63',
+                border: '2px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '18px 24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontWeight: '600',
+                fontSize: '15px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.borderColor = '#f97316';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(249, 115, 22, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+              }}
+            >
+              <FontAwesomeIcon icon={faCog} style={{ fontSize: '18px', color: '#6366f1' }} />
+              <span>Settings</span>
+              <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '12px', marginLeft: 'auto', opacity: 0.6 }} />
+            </button>
           </div>
 
           {/* Enhanced Summary Overview Cards */}

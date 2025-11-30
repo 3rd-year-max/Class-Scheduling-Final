@@ -75,7 +75,8 @@ const InstructorSidebar = ({ isOpen, onClose }) => {
     try {
       // Log the logout activity
       if (userEmail) {
-        await axios.post('http://localhost:5000/api/instructor-auth/logout', {
+        const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+        await axios.post(`${apiBase}/api/instructor-auth/logout`, {
           email: userEmail
         });
       }

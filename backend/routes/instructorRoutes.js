@@ -109,6 +109,44 @@ router.get("/profile/me", verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/instructors/calendar/status - Check Google Calendar configuration status (no auth required for diagnostics)
+router.get("/calendar/status", async (req, res) => {
+  try {
+    const hasClientEmail = !!process.env.GOOGLE_CLIENT_EMAIL;
+    const hasPrivateKey = !!process.env.GOOGLE_PRIVATE_KEY;
+    const hasProjectId = !!process.env.GOOGLE_PROJECT_ID;
+    
+    let privateKeyFormat = 'unknown';
+    if (hasPrivateKey) {
+      const key = process.env.GOOGLE_PRIVATE_KEY;
+      const hasBegin = key.includes('BEGIN PRIVATE KEY');
+      const hasEnd = key.includes('END PRIVATE KEY');
+      privateKeyFormat = hasBegin && hasEnd ? 'valid' : 'invalid';
+    }
+    
+    const configured = isGoogleCalendarConfigured();
+    
+    return res.json({
+      configured,
+      env_variables: {
+        GOOGLE_CLIENT_EMAIL: hasClientEmail ? 'Set' : 'Missing',
+        GOOGLE_PRIVATE_KEY: hasPrivateKey ? `Set (${privateKeyFormat} format)` : 'Missing',
+        GOOGLE_PROJECT_ID: hasProjectId ? 'Set' : 'Missing'
+      },
+      service_account: hasClientEmail ? process.env.GOOGLE_CLIENT_EMAIL : null,
+      instructions: configured 
+        ? "✅ Google Calendar is configured. Make sure each instructor's calendar is shared with the service account."
+        : "❌ Google Calendar is not configured. Set GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_PROJECT_ID in backend/.env and restart the server."
+    });
+  } catch (error) {
+    console.error('Error checking Google Calendar status:', error);
+    res.status(500).json({
+      configured: false,
+      error: error.message
+    });
+  }
+});
+
 // SELF: Get Google Calendar events for current instructor
 router.get("/calendar/events", verifyToken, async (req, res) => {
   try {
@@ -124,10 +162,22 @@ router.get("/calendar/events", verifyToken, async (req, res) => {
     }
 
     // Check if Google Calendar is configured
-    if (!isGoogleCalendarConfigured()) {
+    const isConfigured = isGoogleCalendarConfigured();
+    if (!isConfigured) {
+      // Provide detailed diagnostics
+      const hasClientEmail = !!process.env.GOOGLE_CLIENT_EMAIL;
+      const hasPrivateKey = !!process.env.GOOGLE_PRIVATE_KEY;
+      const hasProjectId = !!process.env.GOOGLE_PROJECT_ID;
+      
       return res.status(503).json({ 
         message: "Google Calendar is not configured",
-        configured: false
+        configured: false,
+        diagnostics: {
+          GOOGLE_CLIENT_EMAIL: hasClientEmail ? 'Set' : 'Missing',
+          GOOGLE_PRIVATE_KEY: hasPrivateKey ? 'Set' : 'Missing',
+          GOOGLE_PROJECT_ID: hasProjectId ? 'Set' : 'Missing',
+          instructions: "Set GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_PROJECT_ID in your backend .env file and restart the server."
+        }
       });
     }
 

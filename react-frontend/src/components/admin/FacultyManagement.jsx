@@ -7,14 +7,9 @@ import {
   faPlus,
   faUserPlus,
   faCopy,
-  faCheckSquare,
-  faSquare,
-  faListCheck,
-  faDownload,
   faChalkboardTeacher,
 } from "@fortawesome/free-solid-svg-icons";
 import TableSortHeader from '../common/TableSortHeader.jsx';
-import XLSX from 'xlsx-js-style';
 import { io } from "socket.io-client";
 import { useToast } from "../common/ToastProvider.jsx";
 import ConfirmationDialog from "../common/ConfirmationDialog.jsx";
@@ -101,8 +96,6 @@ const FacultyManagement = () => {
   const [activeTab, setActiveTab] = useState("active");
   const [instructors, setInstructors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [isSelectMode, setIsSelectMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: 'instructorId', direction: 'asc' });
@@ -284,56 +277,14 @@ const FacultyManagement = () => {
     gap: "6px"
   });
 
-  const exportInstructorsToExcel = () => {
-    const wb = XLSX.utils.book_new();
-    
-    const data = [
-      ['Instructor ID', 'First Name', 'Last Name', 'Email', 'Contact', 'Department', 'Status'],
-      ...filteredInstructors.map(inst => [
-        inst.instructorId || '',
-        inst.firstname || '',
-        inst.lastname || '',
-        inst.email || '',
-        inst.contact || '',
-        inst.department || '',
-        inst.status || ''
-      ])
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 15 },
-      { wch: 25 },
-      { wch: 15 }
-    ];
-
-    // Style header row
-    const headerRange = XLSX.utils.decode_range(ws['!ref']);
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!ws[cellAddress]) continue;
-      ws[cellAddress].s = {
-        fill: { fgColor: { rgb: "0f2c63" } },
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        alignment: { horizontal: "center", vertical: "center" }
-      };
-    }
-
-    XLSX.utils.book_append_sheet(wb, ws, `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Instructors`);
-    XLSX.writeFile(wb, `instructors-${activeTab}-${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
 
   const handleArchive = (id) =>
     showConfirm("Archive Instructor", "Are you sure you want to archive this instructor?", async () => {
       try {
         const res = await apiClient.patch(`/api/instructors/${id}/archive`);
         if (res.data.success) {
-          setInstructors((prev) => prev.map((i) => (i._id === id ? { ...i, status: 'archived' } : i)));
           showToast('Instructor archived successfully.', 'success');
+          fetchInstructors(); // Refresh the list to ensure consistency
         }
       } catch (err) {
         console.error('Error archiving instructor', err);
@@ -346,8 +297,8 @@ const FacultyManagement = () => {
       try {
         const res = await apiClient.patch(`/api/instructors/${id}/restore`);
         if (res.data.success) {
-          setInstructors((prev) => prev.map((i) => (i._id === id ? { ...i, status: 'active' } : i)));
           showToast('Instructor restored successfully.', 'success');
+          fetchInstructors(); // Refresh the list to ensure consistency
         }
       } catch (err) {
         console.error('Error restoring instructor', err);
@@ -422,49 +373,6 @@ const FacultyManagement = () => {
     }
   };
 
-  // Bulk operations
-  const handleToggleSelect = (id) => {
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  const handleSelectAll = () => {
-    if (selectedIds.size === filteredInstructors.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredInstructors.map(inst => inst._id)));
-    }
-  };
-
-  const handleBulkArchive = () => {
-    if (selectedIds.size === 0) return;
-    showConfirm(
-      "Archive Instructors",
-      `Are you sure you want to archive ${selectedIds.size} instructor(s)?`,
-      async () => {
-        const promises = Array.from(selectedIds).map(id =>
-          apiClient.patch(`/api/instructors/${id}/archive`)
-        );
-        try {
-          const results = await Promise.allSettled(promises);
-          const successful = results.filter(r => r.status === 'fulfilled' && r.value?.data?.success).length;
-          showToast(`Successfully archived ${successful} of ${selectedIds.size} instructor(s).`, 'success');
-          setSelectedIds(new Set());
-          setIsSelectMode(false);
-          fetchInstructors();
-        } catch (err) {
-          showToast("Error archiving instructors.", 'error');
-        }
-      }
-    );
-  };
 
 
   return (
@@ -557,37 +465,6 @@ const FacultyManagement = () => {
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
               </select>
-              {filteredInstructors.length > 0 && (
-                <button
-                  onClick={exportInstructorsToExcel}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
-                    color: '#fff',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
-                  }}
-                >
-                  <FontAwesomeIcon icon={faDownload} />
-                  Export Excel
-                </button>
-              )}
             </div>
           </div>
 
@@ -678,154 +555,27 @@ const FacultyManagement = () => {
               </button>
             </div>
             <div style={{ display: "flex", gap: 12 }}>
-              {!isSelectMode ? (
-                <>
-                  <button
-                    style={{
-                      ...btnStyle("#7c3aed"),
-                      background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
-                      boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)"
-                    }}
-                    onClick={() => setIsSelectMode(true)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-3px)";
-                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(124, 58, 237, 0.4)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(124, 58, 237, 0.3)";
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faListCheck} /> Select Multiple
-                  </button>
-                  <button
-                    style={{
-                      ...btnStyle("#2563eb"),
-                      background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-                      boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
-                    }}
-                    onClick={() => setShowAddModal(true)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-3px)";
-                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.4)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faPlus} /> Add Instructor
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    style={{
-                      ...btnStyle("#6b7280"),
-                      background: "linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)",
-                      boxShadow: "0 4px 12px rgba(107, 114, 128, 0.2)"
-                    }}
-                    onClick={() => {
-                      setIsSelectMode(false);
-                      setSelectedIds(new Set());
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = "0 6px 16px rgba(107, 114, 128, 0.3)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(107, 114, 128, 0.2)";
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  {selectedIds.size > 0 && (
-                    <>
-                      {activeTab === "active" && (
-                        <button
-                          style={{
-                            ...btnStyle("#059669"),
-                            background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-                            boxShadow: "0 4px 12px rgba(5, 150, 105, 0.3)"
-                          }}
-                          onClick={handleBulkArchive}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = "translateY(-2px)";
-                            e.currentTarget.style.boxShadow = "0 6px 20px rgba(5, 150, 105, 0.4)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = "translateY(0)";
-                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(5, 150, 105, 0.3)";
-                          }}
-                        >
-                          Archive ({selectedIds.size})
-                        </button>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
+              <button
+                style={{
+                  ...btnStyle("#2563eb"),
+                  background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
+                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
+                }}
+                onClick={() => setShowAddModal(true)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                }}
+              >
+                <FontAwesomeIcon icon={faPlus} /> Add Instructor
+              </button>
             </div>
           </div>
 
-          {/* Bulk Selection Header */}
-          {isSelectMode && (
-            <div style={{
-              background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
-              padding: "12px 16px",
-              borderRadius: "10px",
-              marginBottom: "16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.15), 0 0 0 1px rgba(37, 99, 235, 0.1)",
-              border: "1px solid rgba(37, 99, 235, 0.2)"
-            }}>
-              <button
-                onClick={handleSelectAll}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#1e40af",
-                  padding: "6px 10px",
-                  borderRadius: "6px",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(37, 99, 235, 0.1)";
-                  e.currentTarget.style.transform = "translateX(2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.transform = "translateX(0)";
-                }}
-              >
-                <FontAwesomeIcon
-                  icon={selectedIds.size === filteredInstructors.length ? faCheckSquare : faSquare}
-                  style={{ fontSize: 16, color: "#2563eb" }}
-                />
-                {selectedIds.size === filteredInstructors.length ? "Deselect All" : "Select All"}
-              </button>
-              <span style={{ 
-                fontSize: 13, 
-                fontWeight: 700, 
-                color: "#1e40af",
-                background: "rgba(37, 99, 235, 0.1)",
-                padding: "5px 12px",
-                borderRadius: "6px",
-                border: "1px solid rgba(37, 99, 235, 0.2)"
-              }}>
-                {selectedIds.size} selected
-              </span>
-            </div>
-          )}
 
           {loading ? (
             <div style={{
@@ -865,11 +615,6 @@ const FacultyManagement = () => {
                   boxShadow: "0 4px 12px rgba(15, 44, 99, 0.2)"
                 }}>
                   <tr>
-                    {isSelectMode && (
-                      <th style={{ padding: 12, textAlign: "left", fontSize: 13, fontWeight: "700", width: "50px" }}>
-                        <FontAwesomeIcon icon={faSquare} style={{ color: "#9ca3af", fontSize: 14 }} />
-                      </th>
-                    )}
                     <TableSortHeader
                       sortKey="instructorId"
                       currentSort={sortConfig}
@@ -963,7 +708,7 @@ const FacultyManagement = () => {
                 <tbody>
                   {filteredInstructors.length === 0 ? (
                     <tr>
-                      <td colSpan={isSelectMode ? 8 : 7} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
+                      <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
                         No instructors found in this category.
                       </td>
                     </tr>
@@ -974,46 +719,21 @@ const FacultyManagement = () => {
                         style={{ 
                           borderBottom: "1px solid #f1f5f9", 
                           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                          background: selectedIds.has(inst._id) ? "#eff6ff" : index % 2 === 0 ? "white" : "#fafafa",
+                          background: index % 2 === 0 ? "white" : "#fafafa",
                           cursor: "default",
                           animation: `fadeInUp 0.4s ease-out ${index * 0.03}s both`
                         }}
                         onMouseEnter={(e) => {
-                          if (!selectedIds.has(inst._id)) {
-                            e.currentTarget.style.background = "#f0f9ff";
-                            e.currentTarget.style.transform = "scale(1.01)";
-                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(15, 44, 99, 0.1)";
-                          }
+                          e.currentTarget.style.background = "#f0f9ff";
+                          e.currentTarget.style.transform = "scale(1.01)";
+                          e.currentTarget.style.boxShadow = "0 2px 8px rgba(15, 44, 99, 0.1)";
                         }}
                         onMouseLeave={(e) => {
-                          if (!selectedIds.has(inst._id)) {
-                            e.currentTarget.style.background = index % 2 === 0 ? "white" : "#fafafa";
-                            e.currentTarget.style.transform = "scale(1)";
-                            e.currentTarget.style.boxShadow = "none";
-                          }
+                          e.currentTarget.style.background = index % 2 === 0 ? "white" : "#fafafa";
+                          e.currentTarget.style.transform = "scale(1)";
+                          e.currentTarget.style.boxShadow = "none";
                         }}
                       >
-                        {isSelectMode && (
-                          <td style={{ padding: 12 }}>
-                            <button
-                              onClick={() => handleToggleSelect(inst._id)}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: 0,
-                              }}
-                            >
-                              <FontAwesomeIcon
-                                icon={selectedIds.has(inst._id) ? faCheckSquare : faSquare}
-                                style={{ 
-                                  fontSize: 16, 
-                                  color: selectedIds.has(inst._id) ? "#3b82f6" : "#9ca3af" 
-                                }}
-                              />
-                            </button>
-                          </td>
-                        )}
                         <td style={{ padding: 12, fontSize: 13, fontWeight: "600", color: "#0f2c63" }}>
                           {inst.instructorId && inst.instructorId.trim() !== "" ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1130,27 +850,29 @@ const FacultyManagement = () => {
                                 </button>
                               </>
                             )}
-                            <button
-                              onClick={() => {
-                                const url = `/admin/instructor/${inst._id}/workload`;
-                                window.open(url, '_blank', 'noopener,noreferrer');
-                              }}
-                              style={{
-                                ...btnStyle("#2563eb"),
-                                background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-                                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)"
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = "scale(1.08)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.35)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = "scale(1)";
-                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.25)";
-                              }}
-                            >
-                              <FontAwesomeIcon icon={faListCheck} /> View Workload
-                            </button>
+                            {inst.status !== "archived" && (
+                              <button
+                                onClick={() => {
+                                  const url = `/admin/instructor/${inst._id}/workload`;
+                                  window.open(url, '_blank', 'noopener,noreferrer');
+                                }}
+                                style={{
+                                  ...btnStyle("#2563eb"),
+                                  background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
+                                  boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = "scale(1.08)";
+                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.35)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = "scale(1)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.25)";
+                                }}
+                              >
+                                <FontAwesomeIcon icon={faChalkboardTeacher} /> View Workload
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

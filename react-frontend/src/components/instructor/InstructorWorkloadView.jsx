@@ -148,14 +148,61 @@ const InstructorWorkloadView = () => {
       margin: 0
     }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem' }}>
+        {/* Header Section */}
+        <div style={{
+          background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+          borderRadius: '16px',
+          padding: '20px 24px',
+          marginBottom: '24px',
+          boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(12px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.3)'
+            }}>
+              <FaUserCircle style={{ fontSize: 24, color: '#fff' }} />
+            </div>
+            <h1 style={{ 
+              margin: 0, 
+              color: '#ffffff', 
+              fontSize: '24px', 
+              fontWeight: '800',
+              textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              letterSpacing: '-0.3px'
+            }}>
+              My Workload Overview
+            </h1>
+          </div>
+          <p style={{ 
+            margin: 0, 
+            color: 'rgba(255,255,255,0.95)', 
+            fontSize: '14px',
+            fontWeight: '500'
+          }}>
+            Summary and breakdown of your teaching load
+          </p>
+        </div>
+
         <div ref={cardRef} style={{
-              background: 'rgba(255,255,255,0.95)',
-              borderRadius: 20,
-              boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              borderRadius: 16,
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
               backdropFilter: 'blur(10px)',
               WebkitBackdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              padding: '2.5rem',
+              border: '1px solid rgba(15, 44, 99, 0.1)',
+              padding: '2rem',
               marginBottom: 24,
               position: 'relative',
               overflow: 'hidden',
@@ -229,10 +276,6 @@ const InstructorWorkloadView = () => {
                   <FaDownload /> {downloading ? 'Downloading...' : 'Download Report'}
                 </button>
               </div>
-              <header className="workload-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', color: '#1e293b', fontWeight: '700', marginBottom: 8 }}>My Workload Overview</h1>
-                <p style={{ fontSize: '1rem', color: '#64748b', marginTop: 0 }}>Summary and breakdown of my teaching load</p>
-              </header>
               <section className="workload-summary" style={{ display: 'flex', gap: 18, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
                 <div className="summary-card" style={{
                   background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',

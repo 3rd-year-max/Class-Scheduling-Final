@@ -13,6 +13,7 @@ import Instructor from "../models/Instructor.js";
 import Schedule from "../models/Schedule.js";
 import { withRetry, MVCCTransaction } from "../middleware/mvccTransaction.js";
 import { updateInstructorWithConflictResolution, updateWithVersionControl } from "../utils/mvccManager.js";
+import { listCalendarEvents, isGoogleCalendarConfigured } from "../services/googleCalendarService.js";
 
 const router = express.Router();
 
@@ -39,6 +40,120 @@ const upload = multer({
     if (allowed.includes(file.mimetype)) return cb(null, true);
     return cb(new Error("Only image files are allowed"));
   },
+});
+
+// GET /api/instructors/calendar/status - Check Google Calendar configuration status (no auth required for diagnostics)
+router.get('/calendar/status', async (req, res) => {
+  try {
+    const hasClientEmail = !!process.env.GOOGLE_CLIENT_EMAIL;
+    const hasPrivateKey = !!process.env.GOOGLE_PRIVATE_KEY;
+    const hasProjectId = !!process.env.GOOGLE_PROJECT_ID;
+    
+    let privateKeyFormat = 'unknown';
+    if (hasPrivateKey) {
+      const key = process.env.GOOGLE_PRIVATE_KEY;
+      const hasBegin = key.includes('BEGIN PRIVATE KEY');
+      const hasEnd = key.includes('END PRIVATE KEY');
+      privateKeyFormat = hasBegin && hasEnd ? 'valid' : 'invalid';
+    }
+    
+    const configured = isGoogleCalendarConfigured();
+    
+    return res.json({
+      configured,
+      env_variables: {
+        GOOGLE_CLIENT_EMAIL: hasClientEmail ? 'Set' : 'Missing',
+        GOOGLE_PRIVATE_KEY: hasPrivateKey ? `Set (${privateKeyFormat} format)` : 'Missing',
+        GOOGLE_PROJECT_ID: hasProjectId ? 'Set' : 'Missing'
+      },
+      service_account: hasClientEmail ? process.env.GOOGLE_CLIENT_EMAIL : null,
+      instructions: configured 
+        ? "✅ Google Calendar is configured. Make sure each instructor's calendar is shared with the service account."
+        : "❌ Google Calendar is not configured. Set GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_PROJECT_ID in backend/.env and restart the server."
+    });
+  } catch (error) {
+    console.error('Error checking Google Calendar status:', error);
+    res.status(500).json({
+      configured: false,
+      error: error.message
+    });
+  }
+});
+
+// SELF: Get Google Calendar events for current instructor
+router.get("/calendar/events", verifyToken, async (req, res) => {
+  try {
+    const instructor = await Instructor.findOne({ email: req.userEmail })
+      .select("email status");
+    
+    if (!instructor) {
+      return res.status(404).json({ message: "Instructor not found" });
+    }
+
+    if (instructor.status !== 'active') {
+      return res.status(403).json({ message: "Instructor account is not active" });
+    }
+
+    // Check if Google Calendar is configured
+    const isConfigured = isGoogleCalendarConfigured();
+    if (!isConfigured) {
+      // Provide detailed diagnostics
+      const hasClientEmail = !!process.env.GOOGLE_CLIENT_EMAIL;
+      const hasPrivateKey = !!process.env.GOOGLE_PRIVATE_KEY;
+      const hasProjectId = !!process.env.GOOGLE_PROJECT_ID;
+      
+      return res.status(503).json({ 
+        message: "Google Calendar is not configured",
+        configured: false,
+        diagnostics: {
+          GOOGLE_CLIENT_EMAIL: hasClientEmail ? 'Set' : 'Missing',
+          GOOGLE_PRIVATE_KEY: hasPrivateKey ? 'Set' : 'Missing',
+          GOOGLE_PROJECT_ID: hasProjectId ? 'Set' : 'Missing',
+          instructions: "Set GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_PROJECT_ID in your backend .env file and restart the server."
+        }
+      });
+    }
+
+    // Get query parameters for filtering
+    const timeMin = req.query.timeMin || new Date().toISOString();
+    const timeMax = req.query.timeMax;
+    const maxResults = parseInt(req.query.maxResults) || 50;
+
+    // Fetch calendar events (gracefully handles errors - returns empty array if calendar not accessible)
+    let events = [];
+    try {
+      events = await listCalendarEvents(instructor.email, {
+        timeMin,
+        timeMax,
+        maxResults
+      });
+    } catch (error) {
+      // Error already handled in listCalendarEvents, but catch here as extra safety
+      console.warn(`⚠️ Calendar events fetch failed for ${instructor.email}:`, error.message);
+      events = [];
+    }
+
+    // Also get schedules that are synced to calendar
+    const schedules = await Schedule.find({ 
+      instructorEmail: instructor.email,
+      googleCalendarEventId: { $exists: true, $ne: null }
+    }).select('_id subject course year section day time room googleCalendarEventId');
+
+    res.json({
+      configured: true,
+      events: events || [],
+      syncedSchedules: schedules || [],
+      count: events?.length || 0
+    });
+
+  } catch (error) {
+    console.error('Error fetching Google Calendar events:', error);
+    res.status(500).json({ 
+      message: "Error fetching calendar events", 
+      error: error.message,
+      configured: isGoogleCalendarConfigured()
+    });
+  }
 });
 
 /**
@@ -706,6 +821,66 @@ router.put('/profile', async (req, res) => {
   } catch (error) {
     console.error('Error updating profile:', error);
     return res.status(500).json({ success: false, message: 'Server error updating instructor' });
+  }
+});
+
+// Archive instructor (soft) - used by frontend (PATCH)
+// MUST be before PUT /:id route to avoid route conflict
+router.patch('/:id/archive', async (req, res) => {
+  try {
+    const instructor = await Instructor.findByIdAndUpdate(
+      req.params.id,
+      { status: "archived", archivedDate: new Date() },
+      { new: true }
+    );
+    if (!instructor) {
+      return res.status(404).json({ success: false, message: "Instructor not found" });
+    }
+    
+    const instructorName = `${instructor.firstname || ''} ${instructor.lastname || ''}`.trim() || instructor.email;
+    await logActivity({
+      type: 'instructor-archived',
+      message: `Instructor ${instructorName} archived by admin`,
+      source: 'admin',
+      link: '/admin/faculty-management',
+      meta: { instructorId: instructor.instructorId, email: instructor.email },
+      io: req.io
+    });
+    
+    return res.json({ success: true, message: "Instructor archived", instructor });
+  } catch (err) {
+    console.error('Error archiving instructor:', err);
+    return res.status(500).json({ success: false, message: 'Error archiving instructor', error: err.message });
+  }
+});
+
+// Restore archived instructor (PATCH)
+// MUST be before PUT /:id route to avoid route conflict
+router.patch('/:id/restore', async (req, res) => {
+  try {
+    const instructor = await Instructor.findByIdAndUpdate(
+      req.params.id,
+      { status: "active", archivedDate: null },
+      { new: true }
+    );
+    if (!instructor) {
+      return res.status(404).json({ success: false, message: "Instructor not found" });
+    }
+    
+    const instructorName = `${instructor.firstname || ''} ${instructor.lastname || ''}`.trim() || instructor.email;
+    await logActivity({
+      type: 'instructor-restored',
+      message: `Instructor ${instructorName} restored by admin`,
+      source: 'admin',
+      link: '/admin/faculty-management',
+      meta: { instructorId: instructor.instructorId, email: instructor.email },
+      io: req.io
+    });
+    
+    return res.json({ success: true, message: "Instructor restored", instructor });
+  } catch (err) {
+    console.error('Error restoring instructor:', err);
+    return res.status(500).json({ success: false, message: 'Error restoring instructor', error: err.message });
   }
 });
 

@@ -251,12 +251,48 @@ const InstructorNotifications = () => {
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <div className="dashboard-content" style={{ marginTop: '140px' }}>
           {/* Welcome Section */}
-          <div className="welcome-section" style={{ marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <FontAwesomeIcon icon={faBell} style={{ fontSize: 32, color: '#f97316' }} />
-              <h2 style={{ margin: 0 }}>Notifications</h2>
+          <div className="welcome-section" style={{ 
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(12px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                <FontAwesomeIcon icon={faBell} style={{ fontSize: 24, color: '#fff' }} />
+              </div>
+              <h2 style={{ 
+                margin: 0, 
+                color: '#ffffff', 
+                fontSize: '24px', 
+                fontWeight: '800',
+                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                letterSpacing: '-0.3px'
+              }}>
+                Notifications
+              </h2>
             </div>
-            <p style={{ margin: 0 }}>
+            <p style={{ 
+              margin: 0, 
+              color: 'rgba(255,255,255,0.95)', 
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
               {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
             </p>
             <div style={{ marginTop: '16px' }}>
@@ -290,11 +326,12 @@ const InstructorNotifications = () => {
 
           {/* Filters */}
           <div style={{
-            background: '#fff',
-            padding: '20px',
-            borderRadius: '15px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-            marginBottom: '20px'
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            padding: '18px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+            marginBottom: '20px',
+            border: '1px solid rgba(15, 44, 99, 0.1)'
           }}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {['all', 'unread', 'read'].map((f) => (
@@ -325,10 +362,11 @@ const InstructorNotifications = () => {
 
           {/* Notifications List */}
           <div style={{
-            background: '#fff',
-            padding: '30px',
-            borderRadius: '15px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            padding: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+            border: '1px solid rgba(15, 44, 99, 0.1)'
           }}>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
@@ -355,28 +393,35 @@ const InstructorNotifications = () => {
                     <div
                       key={notification._id}
                       onClick={() => !notification.read && markAsRead(notification._id)}
-                      style={{
-                        padding: '20px',
-                        borderRadius: '12px',
-                        border: '2px solid',
-                        borderColor: notification.read ? '#e5e7eb' : '#0f2c63',
-                        background: notification.read ? '#ffffff' : '#f0f9ff',
-                        cursor: notification.read ? 'default' : 'pointer',
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '15px'
-                      }}
+                    style={{
+                      padding: '18px',
+                      borderRadius: '12px',
+                      border: '1px solid',
+                      borderColor: notification.read ? 'rgba(15, 44, 99, 0.1)' : 'rgba(15, 44, 99, 0.2)',
+                      background: notification.read 
+                        ? 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)' 
+                        : 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                      cursor: notification.read ? 'default' : 'pointer',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '15px',
+                      boxShadow: notification.read 
+                        ? '0 2px 8px rgba(0, 0, 0, 0.05)' 
+                        : '0 4px 12px rgba(15, 44, 99, 0.15)'
+                    }}
                       onMouseEnter={(e) => {
                         if (!notification.read) {
-                          e.currentTarget.style.background = '#e0f2fe';
-                          e.currentTarget.style.transform = 'translateX(4px)';
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)';
+                          e.currentTarget.style.transform = 'translateX(4px) translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 44, 99, 0.2)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!notification.read) {
-                          e.currentTarget.style.background = '#f0f9ff';
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)';
                           e.currentTarget.style.transform = '';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.15)';
                         }
                       }}
                     >

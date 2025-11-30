@@ -16,9 +16,9 @@ const roomSchema = new mongoose.Schema({
   optimisticConcurrency: true
 });
 
-// Index for room queries
-roomSchema.index({ room: 1 });
-roomSchema.index({ status: 1 });
+// Indexes for room queries
+roomSchema.index({ room: 1 }, { unique: true }); // Ensure unique room names
+roomSchema.index({ status: 1, archived: 1 }); // Compound index for available rooms query
 roomSchema.index({ archived: 1 });
 
 const Room = mongoose.model('Room', roomSchema);

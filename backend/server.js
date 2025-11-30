@@ -36,17 +36,103 @@ import { versionConflictHandler } from './middleware/mvccTransaction.js';
 import { startWeatherScheduler } from './services/weatherScheduler.js';
 import Instructor from './models/Instructor.js'; // Import the model for index management
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
+import { sanitizeInput } from './middleware/sanitizeInput.js';
 
 dotenv.config();
 
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: '*',
+// CORS Configuration - Security: Only allow configured origins
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+      : (process.env.NODE_ENV === 'production' 
+          ? [] // Production: must specify CORS_ORIGIN
+          : ['http://localhost:3000']); // Development default
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Allow cookies/auth headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+};
+
+app.use(cors(corsOptions));
+
+// ============== RATE LIMITING ==============
+// General API rate limiter - applies to all API routes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More lenient in development
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  skip: (req) => {
+    // Skip rate limiting for health checks and internal routes
+    return req.path === '/health' || req.path.startsWith('/api/public');
+  }
+});
+
+// Stricter rate limiter for write operations (create, update, delete)
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 20 : 100, // Stricter limits for write operations
+  message: {
+    success: false,
+    message: 'Too many write requests, please try again later.',
+    code: 'WRITE_RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Only apply to write operations (POST, PUT, DELETE, PATCH)
+    return !['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+  }
+});
+
+// File upload rate limiter (stricter due to resource usage)
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: process.env.NODE_ENV === 'production' ? 10 : 50,
+  message: {
+    success: false,
+    message: 'Too many file uploads, please try again later.',
+    code: 'UPLOAD_RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general API rate limiting to all routes
+app.use('/api/', apiLimiter);
+
+// Apply stricter rate limiting to write operations
+app.use('/api/schedule', writeLimiter);
+app.use('/api/sections', writeLimiter);
+app.use('/api/rooms', writeLimiter);
+app.use('/api/instructors', writeLimiter);
+app.use('/api/admin', writeLimiter);
+app.use('/api/schedule-templates', writeLimiter);
+
+// Apply upload rate limiting to file upload endpoints
+app.use('/api/instructors/profile/image', uploadLimiter);
 
 // Sentry request handler (must be before express.json)
 // Only use if Sentry is properly initialized
@@ -55,6 +141,9 @@ if (isSentryReady()) {
 }
 
 app.use(express.json());
+
+// Input sanitization middleware - protect against XSS and injection attacks
+app.use(sanitizeInput);
 
 // Populate req.userId (and req.user) from JWT for MVCC routes and audit
 // This middleware is forgiving: if token is missing/invalid we just continue
@@ -99,12 +188,37 @@ app.use(async (req, res, next) => {
   }
 });
 
-// MongoDB connection URI
-const mongoURI = process.env.MONGO_URI;
-if (!mongoURI) {
-  console.error('⚠️ MONGO_URI not specified in .env');
+// ============== ENVIRONMENT VARIABLE VALIDATION ==============
+// Critical variables that must be set
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
+const missing = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missing.length > 0) {
+  console.error(`❌ CRITICAL: Missing required environment variables: ${missing.join(', ')}`);
+  console.error('   Please check your .env file and ensure all required variables are set.');
   process.exit(1);
 }
+
+// Optional variables with defaults
+const optionalEnvVars = {
+  'CORS_ORIGIN': process.env.NODE_ENV === 'production' ? null : 'http://localhost:3000',
+  'PORT': '5000',
+  'NODE_ENV': 'development'
+};
+
+Object.entries(optionalEnvVars).forEach(([key, defaultValue]) => {
+  if (!process.env[key]) {
+    if (defaultValue) {
+      console.warn(`⚠️ ${key} not set, using default: ${defaultValue}`);
+      process.env[key] = defaultValue;
+    } else {
+      console.warn(`⚠️ ${key} not set (recommended for production)`);
+    }
+  }
+});
+
+// MongoDB connection URI
+const mongoURI = process.env.MONGO_URI;
 
 // Function to drop old email index and create new partial unique index
 async function setupIndexes() {

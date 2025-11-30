@@ -422,6 +422,21 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET archived sections list (MUST be before /:id route to avoid route conflict)
+router.get('/archived/list', async (req, res) => {
+  try {
+    const { course, year } = req.query;
+    const query = { archived: true };
+    if (course) query.course = course;
+    if (year) query.year = year;
+    const archived = await Section.find(query).select('name course year archived createdAt updatedAt _id').sort({ name: 1 }).lean();
+    return res.json(archived || []);
+  } catch (err) {
+    console.error('Error fetching archived sections:', err);
+    res.status(500).json({ success: false, message: 'Error fetching archived sections', error: err.message });
+  }
+});
+
 /**
  * GET /api/sections/:id
  * Fetch a single section by ID
@@ -474,21 +489,6 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Compatibility section delete error:', error);
     res.status(500).json({ success: false, message: 'Server error deleting section', error: error.message });
-  }
-});
-
-// GET archived sections list (compatibility)
-router.get('/archived/list', async (req, res) => {
-  try {
-    const { course, year } = req.query;
-    const query = { archived: true };
-    if (course) query.course = course;
-    if (year) query.year = year;
-    const archived = await Section.find(query).select('name course year archived createdAt updatedAt _id').sort({ name: 1 }).lean();
-    return res.json(archived || []);
-  } catch (err) {
-    console.error('Error fetching archived sections:', err);
-    res.status(500).json({ success: false, message: 'Error fetching archived sections', error: err.message });
   }
 });
 

@@ -13,7 +13,8 @@ const InstructorWorkload = () => {
   useEffect(() => {
     const fetchWorkloadData = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/instructors/${instructorId}/workload`);
+        const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+        const response = await fetch(`${apiBase}/api/instructors/${instructorId}/workload`);
         if (!response.ok) {
           throw new Error('Failed to fetch workload data');
         }

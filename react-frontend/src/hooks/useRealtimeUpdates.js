@@ -103,7 +103,8 @@ export const useSocket = () => {
     const connectSocket = async () => {
       try {
         const { io } = await import('socket.io-client');
-        const newSocket = io('http://localhost:5000', {
+        const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+        const newSocket = io(apiBase, {
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,

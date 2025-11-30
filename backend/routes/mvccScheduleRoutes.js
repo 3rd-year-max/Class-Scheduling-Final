@@ -14,6 +14,9 @@ import {
   createScheduleWithValidation,
   updateWithVersionControl
 } from "../utils/mvccManager.js";
+import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, isGoogleCalendarConfigured } from '../services/googleCalendarService.js';
+import { successResponse, errorResponse, validationErrorResponse, notFoundResponse, conflictResponse, versionConflictResponse, serverErrorResponse } from '../utils/responseHelpers.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -143,13 +146,14 @@ router.post("/create-mvcc", async (req, res) => {
   try {
     const { course, year, section, subject, instructor, instructorEmail, day, time, room } = req.body;
     
+    logger.info('Creating schedule', { course, year, section, instructor, room, userId: req.userId });
+    
     // Validate required fields
     if (!course || !year || !section || !subject || !instructor || !day || !time || !room) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-        code: "VALIDATION_ERROR"
-      });
+      logger.warn('Schedule creation failed: missing required fields', { body: req.body });
+      return validationErrorResponse(res, {
+        fields: ['course', 'year', 'section', 'subject', 'instructor', 'day', 'time', 'room']
+      }, 'All fields are required');
     }
 
     // Create transaction
@@ -158,11 +162,8 @@ router.post("/create-mvcc", async (req, res) => {
     // Validate room exists and not archived
     const roomDoc = await Room.findOne({ room, archived: false });
     if (!roomDoc) {
-      return res.status(404).json({
-        success: false,
-        message: `Room ${room} not found or archived`,
-        code: "ROOM_NOT_FOUND"
-      });
+      logger.warn(`Room not found or archived: ${room}`);
+      return notFoundResponse(res, `Room ${room}`);
     }
 
     // Validate section exists and not archived
@@ -173,11 +174,8 @@ router.post("/create-mvcc", async (req, res) => {
       archived: false
     });
     if (!sectionDoc) {
-      return res.status(404).json({
-        success: false,
-        message: `Section ${section} not found or archived`,
-        code: "SECTION_NOT_FOUND"
-      });
+      logger.warn(`Section not found or archived: ${section} in ${course} ${year}`);
+      return notFoundResponse(res, `Section ${section}`);
     }
 
     // Detect conflicts (room and instructor double-booking)
@@ -191,11 +189,8 @@ router.post("/create-mvcc", async (req, res) => {
       archived: false
     });
     if (instructorConflict) {
-      return res.status(409).json({
-        success: false,
-        message: `Instructor ${instructor} already has a schedule at ${day} ${time}`,
-        code: "INSTRUCTOR_CONFLICT"
-      });
+      logger.warn(`Instructor conflict detected: ${instructor} at ${day} ${time}`);
+      return conflictResponse(res, `Instructor ${instructor} already has a schedule at ${day} ${time}`, 'INSTRUCTOR_CONFLICT');
     }
 
     // Create schedule atomically
@@ -236,28 +231,21 @@ router.post("/create-mvcc", async (req, res) => {
       });
     }
 
-    res.status(201).json({
-      success: true,
-      message: "Schedule created with MVCC protection",
+    logger.info('Schedule created successfully', { scheduleId: newSchedule._id, course, year, section });
+    
+    return successResponse(res, 201, "Schedule created with MVCC protection", {
       schedule: newSchedule,
       transaction: txnRecord
     });
 
   } catch (error) {
     if (error.message?.includes('conflict')) {
-      return res.status(409).json({
-        success: false,
-        message: error.message,
-        code: "CONFLICT"
-      });
+      logger.warn('Schedule creation conflict', { error: error.message });
+      return conflictResponse(res, error.message);
     }
     
-    console.error("Schedule creation error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error creating schedule",
-      error: error.message
-    });
+    logger.error("Schedule creation error:", { error: error.message, stack: error.stack });
+    return serverErrorResponse(res, "Server error creating schedule", error);
   }
 });
 
@@ -561,7 +549,6 @@ router.post('/create', async (req, res) => {
 
     // Google Calendar sync (best-effort)
     try {
-      const { isGoogleCalendarConfigured, createCalendarEvent } = await import('../services/googleCalendarService.js');
       if (isGoogleCalendarConfigured()) {
         const eventId = await createCalendarEvent(newSchedule, instructorEmail?.toLowerCase());
         if (eventId) {
@@ -638,7 +625,6 @@ router.put('/:id', async (req, res) => {
 
       // Google Calendar sync (best-effort) - update existing event if present
       try {
-        const { isGoogleCalendarConfigured, updateCalendarEvent } = await import('../services/googleCalendarService.js');
         if (isGoogleCalendarConfigured() && updatedSchedule.googleCalendarEventId && instructorEmail) {
           const success = await updateCalendarEvent(updatedSchedule.googleCalendarEventId, updatedSchedule, instructorEmail?.toLowerCase());
           if (success) {
@@ -698,7 +684,6 @@ router.put('/:id', async (req, res) => {
 
     // Google Calendar sync (best-effort) for legacy update
     try {
-      const { isGoogleCalendarConfigured, updateCalendarEvent } = await import('../services/googleCalendarService.js');
       if (isGoogleCalendarConfigured() && schedule.googleCalendarEventId && schedule.instructorEmail) {
         const success = await updateCalendarEvent(schedule.googleCalendarEventId, schedule, schedule.instructorEmail?.toLowerCase());
         if (success) {
@@ -825,6 +810,24 @@ router.get('/availability', async (req, res) => {
   }
 });
 
+// ------------------ Compatibility: archive/restore/archived list ------------------
+// GET archived schedules (MUST be before /:id route to avoid route conflict)
+router.get('/archived', async (req, res) => {
+  try {
+    logger.info('Fetching archived schedules');
+    const archived = await Schedule.find({ archived: true })
+      .select('course year section subject instructor day time room archived createdAt updatedAt _id')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Return format that matches frontend expectations
+    return res.json({ success: true, schedules: archived });
+  } catch (err) {
+    logger.error('Error fetching archived schedules (mvcc):', { error: err.message, stack: err.stack });
+    return res.status(500).json({ success: false, message: 'Server error fetching archived schedules.' });
+  }
+});
+
 /**
  * GET /api/schedule/:id
  * Fetch a single schedule by ID
@@ -835,18 +838,20 @@ router.get('/:id', async (req, res) => {
     
     // Validate MongoDB ObjectId
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: 'Invalid schedule ID' });
+      logger.warn('Invalid schedule ID format', { id });
+      return errorResponse(res, 400, 'Invalid schedule ID', 'INVALID_ID');
     }
 
     const schedule = await Schedule.findById(id).lean();
     if (!schedule) {
-      return res.status(404).json({ success: false, message: 'Schedule not found' });
+      logger.warn('Schedule not found', { id });
+      return notFoundResponse(res, 'Schedule');
     }
 
-    return res.json(schedule);
+    return successResponse(res, 200, 'Schedule fetched successfully', schedule);
   } catch (error) {
-    console.error('Error fetching schedule:', error);
-    res.status(500).json({ success: false, message: 'Server error fetching schedule' });
+    logger.error('Error fetching schedule:', { error: error.message, stack: error.stack, id: req.params.id });
+    return serverErrorResponse(res, 'Server error fetching schedule', error);
   }
 });
 
@@ -863,7 +868,6 @@ router.delete('/:id', async (req, res) => {
       // Google Calendar delete sync (best-effort)
       try {
         if (deleted.googleCalendarEventId && deleted.instructorEmail) {
-          const { deleteCalendarEvent } = await import('../services/googleCalendarService.js');
           await deleteCalendarEvent(deleted.googleCalendarEventId, deleted.instructorEmail);
           console.log(`✅ Schedule ${deleted._id} deleted from Google Calendar`);
         }
@@ -915,7 +919,6 @@ router.delete('/:id', async (req, res) => {
     // Google Calendar delete sync (best-effort) for legacy delete
     try {
       if (deleted.googleCalendarEventId && deleted.instructorEmail) {
-        const { deleteCalendarEvent } = await import('../services/googleCalendarService.js');
         await deleteCalendarEvent(deleted.googleCalendarEventId, deleted.instructorEmail);
         console.log(`✅ Schedule ${deleted._id} deleted from Google Calendar (legacy)`);
       }
@@ -967,7 +970,6 @@ router.delete('/:id', async (req, res) => {
 
 export default router;
 
-// ------------------ Compatibility: archive/restore/archived list ------------------
 // POST archive (frontend uses POST /api/schedule/:id/archive)
 router.post('/:id/archive', async (req, res) => {
   try {
@@ -978,7 +980,6 @@ router.post('/:id/archive', async (req, res) => {
     // If googleCalendar event exists, attempt to delete it (best-effort)
     if (schedule.googleCalendarEventId && schedule.instructorEmail) {
       try {
-        const { deleteCalendarEvent } = await import('../services/googleCalendarService.js');
         await deleteCalendarEvent(schedule.googleCalendarEventId, schedule.instructorEmail);
         schedule.googleCalendarEventId = undefined;
       } catch (err) {
@@ -996,17 +997,6 @@ router.post('/:id/archive', async (req, res) => {
   }
 });
 
-// GET archived schedules
-router.get('/archived', async (req, res) => {
-  try {
-    const archived = await Schedule.find({ archived: true }).select('course year section subject instructor day time room archived createdAt updatedAt _id');
-    res.json({ success: true, schedules: archived });
-  } catch (err) {
-    console.error('Error fetching archived schedules (mvcc):', err);
-    res.status(500).json({ success: false, message: 'Server error fetching archived schedules.' });
-  }
-});
-
 // POST restore schedule
 router.post('/:id/restore', async (req, res) => {
   try {
@@ -1019,7 +1009,6 @@ router.post('/:id/restore', async (req, res) => {
 
     // Best-effort re-sync to Google Calendar if configured
     try {
-      const { isGoogleCalendarConfigured } = await import('../services/googleCalendarService.js');
       if (isGoogleCalendarConfigured()) {
         const { syncScheduleToCalendar } = await import('../utils/mvccManager.js');
         try { await syncScheduleToCalendar(schedule); } catch (e) { console.warn('Resync after restore failed:', e.message); }

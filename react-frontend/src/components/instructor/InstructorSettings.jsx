@@ -196,28 +196,63 @@ const InstructorSettings = () => {
         <div className="dashboard-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: '140px' }}>
           <div
             style={{
-              background: '#fff',
-              padding: '40px',
-              borderRadius: '20px',
-              boxShadow: '0 4px 25px rgba(0,0,0,0.1)',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              padding: '28px',
+              borderRadius: '16px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
               width: '100%',
-              maxWidth: '1200px',
-              borderLeft: '6px solid #f97316',
+              maxWidth: '1000px',
+              border: '1px solid rgba(15, 44, 99, 0.1)',
             }}
           >
-            <h2
-              style={{
-                color: '#1e293b',
-                fontSize: '28px',
-                fontWeight: '700',
-                marginBottom: '8px',
-              }}
-            >
-              Profile Information
-            </h2>
-            <p style={{ color: '#64748b', fontSize: '16px', marginBottom: '25px' }}>
-              View your account details
-            </p>
+            {/* Header Section */}
+            <div style={{
+              background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+              borderRadius: '12px',
+              padding: '20px 24px',
+              marginBottom: '28px',
+              boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(12px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}>
+                  <FontAwesomeIcon icon={faUser} style={{ fontSize: 24, color: '#fff' }} />
+                </div>
+                <h2
+                  style={{
+                    color: '#ffffff',
+                    fontSize: '24px',
+                    fontWeight: '800',
+                    margin: 0,
+                    textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    letterSpacing: '-0.3px'
+                  }}
+                >
+                  Profile Information
+                </h2>
+              </div>
+              <p style={{ 
+                color: 'rgba(255,255,255,0.95)', 
+                fontSize: '14px', 
+                margin: 0,
+                fontWeight: '500'
+              }}>
+                View and manage your account details
+              </p>
+            </div>
 
             {/* Profile Content */}
             <div
