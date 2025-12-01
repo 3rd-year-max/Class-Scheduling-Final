@@ -142,7 +142,7 @@ const ForgotPassword = () => {
           borderRadius: "20px",
           boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15)",
           textAlign: "center",
-          maxWidth: "400px",
+          maxWidth: "550px",
           width: "100%",
           position: "relative",
           overflow: "hidden",

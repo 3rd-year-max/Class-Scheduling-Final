@@ -133,12 +133,14 @@ router.post("/create-mvcc", async (req, res) => {
       status = 'available';
     }
     const transaction = new MVCCTransaction(req.userId || 'system', 'room_creation');
-    // Check for duplicate room
-    const existingRoom = await Room.findOne({ room });
+    // Check for duplicate room name (case-insensitive)
+    const existingRoom = await Room.findOne({ 
+      room: { $regex: new RegExp(`^${room}$`, 'i') } 
+    });
     if (existingRoom) {
       return res.status(409).json({
         success: false,
-        message: `Room ${room} already exists`,
+        message: `Room "${room}" already exists. Please choose a different name.`,
         code: "DUPLICATE_ROOM"
       });
     }
@@ -614,8 +616,17 @@ router.post('/create', async (req, res) => {
       status = 'available';
     }
     const transaction = new MVCCTransaction(req.userId || 'system', 'room_creation');
-    const existingRoom = await Room.findOne({ room });
-    if (existingRoom) return res.status(409).json({ success: false, message: `Room ${room} already exists`, code: 'DUPLICATE_ROOM' });
+    // Check for duplicate room name (case-insensitive)
+    const existingRoom = await Room.findOne({ 
+      room: { $regex: new RegExp(`^${room}$`, 'i') } 
+    });
+    if (existingRoom) {
+      return res.status(409).json({ 
+        success: false, 
+        message: `Room "${room}" already exists. Please choose a different name.`, 
+        code: 'DUPLICATE_ROOM' 
+      });
+    }
     const newRoom = new Room({ room, area, status });
     await newRoom.save();
     transaction.addOperation(newRoom._id, 'create', newRoom.__v, newRoom);

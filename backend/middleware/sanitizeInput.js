@@ -53,6 +53,7 @@ const sanitizeObject = (obj) => {
 
 /**
  * Middleware to sanitize request body, query, and params
+ * Note: req.query is read-only in Express, so we create a sanitized copy as req.sanitizedQuery
  */
 export const sanitizeInput = (req, res, next) => {
   try {
@@ -62,8 +63,11 @@ export const sanitizeInput = (req, res, next) => {
     }
     
     // Sanitize query parameters
+    // req.query is read-only in Express, so we create a sanitized copy
+    // Routes can use req.sanitizedQuery if they need sanitized query params
+    // Otherwise, they can use req.query (which is already URL-decoded by Express)
     if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeObject(req.query);
+      req.sanitizedQuery = sanitizeObject(req.query);
     }
     
     // Sanitize route parameters (be careful not to break ObjectIds)
@@ -74,7 +78,9 @@ export const sanitizeInput = (req, res, next) => {
           if (key === 'id' && /^[a-f\d]{24}$/i.test(req.params[key])) {
             continue;
           }
-          req.params[key] = sanitizeString(req.params[key]);
+          if (typeof req.params[key] === 'string') {
+            req.params[key] = sanitizeString(req.params[key]);
+          }
         }
       }
     }

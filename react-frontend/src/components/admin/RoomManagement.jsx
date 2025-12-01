@@ -40,6 +40,7 @@ const RoomManagement = () => {
   // Add Room form state
   const [newRoom, setNewRoom] = useState({ room: '', area: '', status: 'available' });
   const [addLoading, setAddLoading] = useState(false);
+  const [conflictError, setConflictError] = useState({ show: false, message: '' });
 
   // Edit room modal and states
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -100,7 +101,16 @@ const RoomManagement = () => {
       }
     } catch (err) {
       console.error('Add room failed:', err);
-      showToast('Server error while adding room.', 'error');
+      // Check if it's a 409 Conflict error
+      if (err.response?.status === 409) {
+        const errorMessage = err.response?.data?.message || 'Room already exists';
+        setConflictError({ 
+          show: true, 
+          message: errorMessage 
+        });
+      } else {
+        showToast(err.response?.data?.message || 'Server error while adding room.', 'error');
+      }
     }
     setAddLoading(false);
   };
@@ -1261,6 +1271,97 @@ const RoomManagement = () => {
         destructive={confirmDialog.destructive}
         confirmText={confirmDialog.destructive ? "Delete" : "Confirm"}
       />
+
+      {/* Conflict Error Modal */}
+      {conflictError.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1001,
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => setConflictError({ show: false, message: '' })}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              animation: 'slideIn 0.3s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '16px',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                <FontAwesomeIcon icon={faExclamationTriangle} style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>
+                Room Conflict
+              </h2>
+            </div>
+            
+            <p style={{ 
+              margin: '0 0 24px 0', 
+              fontSize: '16px', 
+              color: '#4b5563',
+              lineHeight: '1.6',
+            }}>
+              {conflictError.message || 'This room already exists in the system. Please choose a different room name.'}
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setConflictError({ show: false, message: '' })}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.35)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.25)';
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
