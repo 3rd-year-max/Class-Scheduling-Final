@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
-import { FaInfoCircle, FaUserCircle, FaDownload, FaCheckCircle, FaClock } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaInfoCircle, FaUserCircle, FaDownload, FaCheckCircle, FaClock, FaArrowLeft } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import { Bar, Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
@@ -8,6 +9,7 @@ import { AuthContext } from '../../context/AuthContext.jsx';
 
 const InstructorWorkloadView = () => {
   const { userEmail } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [workloadData, setWorkloadData] = useState(null);
   const [instructor, setInstructor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -159,31 +161,65 @@ const InstructorWorkloadView = () => {
           position: 'relative',
           overflow: 'hidden'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(12px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.3)'
-            }}>
-              <FaUserCircle style={{ fontSize: 24, color: '#fff' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(12px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                <FaUserCircle style={{ fontSize: 24, color: '#fff' }} />
+              </div>
+              <h1 style={{ 
+                margin: 0, 
+                color: '#ffffff', 
+                fontSize: '24px', 
+                fontWeight: '800',
+                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                letterSpacing: '-0.3px'
+              }}>
+                My Workload Overview
+              </h1>
             </div>
-            <h1 style={{ 
-              margin: 0, 
-              color: '#ffffff', 
-              fontSize: '24px', 
-              fontWeight: '800',
-              textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-              letterSpacing: '-0.3px'
-            }}>
-              My Workload Overview
-            </h1>
+            <button
+              onClick={() => navigate('/instructor/reports')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(12px)',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '12px',
+                padding: '10px 20px',
+                color: '#ffffff',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+              }}
+            >
+              <FaArrowLeft />
+              Back to Reports
+            </button>
           </div>
           <p style={{ 
             margin: 0, 

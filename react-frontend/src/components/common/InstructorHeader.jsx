@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
 import WeatherWidget from './WeatherWidget';
-import NotificationPanel from './NotificationPanel';
 
 const InstructorHeader = ({ onMenuClick }) => {
   const navigate = useNavigate();
@@ -269,71 +268,46 @@ const InstructorHeader = ({ onMenuClick }) => {
           flexShrink: 0
         }}>
           <WeatherWidget />
-          <NotificationPanel />
-          <div className="header-logos" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: isMobile ? '8px' : '12px',
-            padding: isMobile ? '8px 12px' : '10px 16px',
-            background: 'rgba(255, 255, 255, 0.18)',
-            borderRadius: '14px',
-            backdropFilter: 'blur(10px)',
-            border: '2px solid rgba(255, 255, 255, 0.25)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-          }}
-          >
-            <img
-              src="/images/COT-LOGO_T.png"
-              alt="COT Logo"
-              className="header-logo"
-              style={{
-                width: isMobile ? '42px' : '58px',
-                height: isMobile ? '42px' : '58px',
-                objectFit: 'contain',
-                borderRadius: '8px',
-                padding: '4px',
-                opacity: 1,
-                transition: 'transform 0.3s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            />
-            <img
-              src="/images/buksuu.png"
-              alt="Buksu Logo"
-              className="header-logo"
-              style={{
-                width: isMobile ? '42px' : '58px',
-                height: isMobile ? '42px' : '58px',
-                objectFit: 'contain',
-                borderRadius: '8px',
-                padding: '4px',
-                opacity: 1,
-                transition: 'transform 0.3s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            />
-          </div>
+          <img
+            src="/images/COT-LOGO_T.png"
+            alt="COT Logo"
+            className="header-logo"
+            style={{
+              width: isMobile ? '42px' : '58px',
+              height: isMobile ? '42px' : '58px',
+              objectFit: 'contain',
+              borderRadius: '8px',
+              padding: '4px',
+              opacity: 1,
+              transition: 'transform 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          />
+          <img
+            src="/images/buksuu.png"
+            alt="Buksu Logo"
+            className="header-logo"
+            style={{
+              width: isMobile ? '42px' : '58px',
+              height: isMobile ? '42px' : '58px',
+              objectFit: 'contain',
+              borderRadius: '8px',
+              padding: '4px',
+              opacity: 1,
+              transition: 'transform 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          />
         </div>
       </div>
 

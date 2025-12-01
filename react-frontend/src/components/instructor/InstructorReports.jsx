@@ -16,6 +16,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import XLSX from 'xlsx-js-style';
 import axios from 'axios';
+import apiClient from '../../services/apiClient.js';
+import { faCode } from '@fortawesome/free-solid-svg-icons';
 
 const InstructorReports = () => {
   const { userEmail } = useContext(AuthContext);
@@ -34,6 +36,31 @@ const InstructorReports = () => {
   const [filterDay, setFilterDay] = useState("All Days");
   const [filteredSchedule, setFilteredSchedule] = useState([]);
   const [viewMode, setViewMode] = useState("grid"); // grid or table
+
+  // Courses and year levels for Excel export (matching admin format)
+  const courses = useMemo(() => [
+    {
+      id: 'bsit',
+      name: 'BS Information Technology',
+      shortName: 'BSIT',
+      icon: faGraduationCap,
+      gradient: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+    },
+    {
+      id: 'bsemc-dat',
+      name: 'BS Entertainment and Multimedia Computing',
+      shortName: 'BSEMC-DAT',
+      icon: faCode,
+      gradient: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+    },
+  ], []);
+
+  const yearLevels = useMemo(() => [
+    { id: '1styear', label: '1st Year', year: 1 },
+    { id: '2ndyear', label: '2nd Year', year: 2 },
+    { id: '3rdyear', label: '3rd Year', year: 3 },
+    { id: '4thyear', label: '4th Year', year: 4 },
+  ], []);
 
   // Generate time slots for the weekly grid view
   const timeSlots = useMemo(() => generateTimeSlots(
@@ -304,56 +331,6 @@ const InstructorReports = () => {
     }
   };
 
-  // Download CSV report
-  const downloadReport = () => {
-    const properLabel = {
-      monday: "Monday",
-      tuesday: "Tuesday",
-      wednesday: "Wednesday",
-      thursday: "Thursday",
-      friday: "Friday",
-      saturday: "Saturday",
-      sunday: "Sunday",
-    };
-    // Expand multi-day entries into separate rows with full labels
-    const expanded = [];
-    filteredSchedule.forEach((s) => {
-      const days = normalizeDayTokens(s.day);
-      if (days.length === 0) {
-        expanded.push({ ...s, day: s.day });
-      } else {
-        days.forEach((d) => expanded.push({ ...s, day: properLabel[d] || s.day }));
-      }
-    });
-    const reportData = expanded.map((schedule) => ({
-      Day: schedule.day,
-      Time: schedule.timeDisplay || schedule.time,
-      Subject: schedule.subject,
-      Course: schedule.course + " " + schedule.year,
-      Section: schedule.section,
-      Room: schedule.room,
-    }));
-    const csvContent = [
-      ["Day", "Time", "Subject", "Course", "Section", "Room"],
-      ...reportData.map((row) => [
-        row.Day, row.Time, row.Subject, row.Course, row.Section, row.Room,
-      ]),
-    ]
-      .map((e) => e.join(","))
-      .join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${instructorData.firstname}${instructorData.lastname}ScheduleReport.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Log the download activity
-    logReportDownload('CSV');
-  };
 
   // Helper function to expand multi-day schedules
   const expandScheduleDays = () => {
@@ -536,118 +513,759 @@ const InstructorReports = () => {
     logReportDownload('PDF');
   };
 
-  // Excel Export
-  const exportToExcel = () => {
-    const wb = XLSX.utils.book_new();
+  // Helper functions for Excel export (matching admin format)
+  const excelHeaderStyle = {
+    fill: { fgColor: { rgb: '0F2C63' } },
+    font: { color: { rgb: 'FFFFFF' }, bold: true, sz: 12 },
+    border: {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'thin', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } },
+    },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  };
+
+  const excelSubHeaderStyle = {
+    fill: { fgColor: { rgb: 'E0E7FF' } },
+    font: { color: { rgb: '0F172A' }, bold: true, sz: 11 },
+    border: {
+      top: { style: 'thin', color: { rgb: '94A3B8' } },
+      bottom: { style: 'thin', color: { rgb: '94A3B8' } },
+      left: { style: 'thin', color: { rgb: '94A3B8' } },
+      right: { style: 'thin', color: { rgb: '94A3B8' } },
+    },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  };
+
+  const scheduleHighlightPalette = [
+    'FFE4E6', // rose
+    'FEF3C7', // amber
+    'DCFCE7', // green
+    'E0E7FF', // indigo
+    'E9D5FF', // purple
+    'FDE68A', // yellow
+    'BAE6FD', // sky
+    'FBCFE8', // pink
+  ];
+
+  const buildSheetIntroRows = (title, subtitle, columnCount) => {
+    const createRow = (text = '') => {
+      const row = new Array(columnCount).fill('');
+      if (text) row[0] = text;
+      return row;
+    };
+
+    return {
+      titleRow: createRow(title),
+      subtitleRow: createRow(subtitle),
+      spacerRow: createRow(''),
+    };
+  };
+
+  const applyRowStyle = (worksheet, rowIndex, columnCount, style) => {
+    for (let c = 0; c < columnCount; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c });
+      if (worksheet[cellRef]) {
+        worksheet[cellRef].s = style;
+      }
+    }
+  };
+
+  // Generate time slots in 30-minute intervals from 7:30 AM to 9:00 PM
+  const generateTimeSlotsForExcel = () => {
+    const slots = [];
+    let hour = 7;
+    let minute = 30; // Start at 7:30 AM
+    const endHour = 21; // 9:00 PM
+    const endMinute = 0;
     
-    // Prepare data
-    const expanded = expandScheduleDays();
-    const sortedSchedules = [...expanded].sort((a, b) => {
-      const dayOrder = { 'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6, 'sunday': 7 };
-      const aDay = (a.day || '').toLowerCase();
-      const bDay = (b.day || '').toLowerCase();
-      const aDayOrder = dayOrder[aDay] || 99;
-      const bDayOrder = dayOrder[bDay] || 99;
+    while (true) {
+      const startHour = hour;
+      const startMinute = minute;
       
-      if (aDayOrder !== bDayOrder) {
-        return aDayOrder - bDayOrder;
+      // Calculate end time (30 minutes later)
+      let slotEndHour = hour;
+      let slotEndMinute = minute + 30;
+      while (slotEndMinute >= 60) {
+        slotEndMinute -= 60;
+        slotEndHour += 1;
       }
       
-      const aTime = timeStringToMinutes((a.time || '').split(' - ')[0]);
-      const bTime = timeStringToMinutes((b.time || '').split(' - ')[0]);
-      return aTime - bTime;
-    });
-
-    // Summary sheet
-    const summaryData = [
-      ['Teaching Schedule Report'],
-      ['Instructor Name', `${instructorData.firstname} ${instructorData.lastname}`],
-      ['Instructor ID', instructorData.instructorId || 'N/A'],
-      ['Department', instructorData.department || 'N/A'],
-      ['Email', instructorData.email || 'N/A'],
-      ['Generated', new Date().toLocaleString()],
-      [],
-      ['Summary'],
-      ['Total Classes', filteredSchedule.length],
-      ['Teaching Days', new Set(filteredSchedule.map(s => s.day)).size],
-      ['Unique Subjects', new Set(filteredSchedule.map(s => s.subject)).size],
-      ['Rooms Used', new Set(filteredSchedule.map(s => s.room)).size],
-    ];
-    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-    wsSummary['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
-      { s: { r: 7, c: 0 }, e: { r: 7, c: 1 } },
-    ];
-    wsSummary['A1'].s = { font: { bold: true, sz: 18 }, alignment: { horizontal: 'center' } };
-    wsSummary['A8'].s = { font: { bold: true, sz: 14 }, alignment: { horizontal: 'center' } };
-    wsSummary['!cols'] = [{ wch: 20 }, { wch: 40 }];
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
-
-    // Schedule sheet
-    const scheduleData = [
-      ['Day', 'Time', 'Subject', 'Course', 'Year', 'Section', 'Room'],
-      ...sortedSchedules.map(s => [
-        s.day || '',
-        s.timeDisplay || s.time || '',
-        s.subject || '',
-        s.course || '',
-        s.year || '',
-        s.section || '',
-        s.room || ''
-      ]),
-    ];
-    const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData);
-    wsSchedule['!cols'] = [
-      { wch: 15 }, // Day
-      { wch: 20 }, // Time
-      { wch: 40 }, // Subject
-      { wch: 20 }, // Course
-      { wch: 12 }, // Year
-      { wch: 15 }, // Section
-      { wch: 15 }, // Room
-    ];
-    
-    // Style header row
-    const headerRange = XLSX.utils.decode_range(wsSchedule['!ref']);
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!wsSchedule[cellAddress]) continue;
-      wsSchedule[cellAddress].s = {
-        fill: { fgColor: { rgb: "0f2c63" } },
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        alignment: { horizontal: "center", vertical: "center" },
-      };
+      // If slot end exceeds 9:00 PM, cap it at 9:00 PM
+      if (slotEndHour > endHour || (slotEndHour === endHour && slotEndMinute > endMinute)) {
+        slotEndHour = endHour;
+        slotEndMinute = endMinute;
+      }
+      
+      // Format time
+      const startPeriod = startHour >= 12 ? 'PM' : 'AM';
+      const startHour12 = startHour > 12 ? startHour - 12 : (startHour === 0 ? 12 : startHour);
+      const startTimeStr = `${startHour12}:${String(startMinute).padStart(2, '0')} ${startPeriod}`;
+      
+      const endPeriod = slotEndHour >= 12 ? 'PM' : 'AM';
+      const endHour12 = slotEndHour > 12 ? slotEndHour - 12 : (slotEndHour === 0 ? 12 : slotEndHour);
+      const endTimeStr = `${endHour12}:${String(slotEndMinute).padStart(2, '0')} ${endPeriod}`;
+      
+      slots.push({
+        label: `${startTimeStr} - ${endTimeStr}`,
+        startMinutes: startHour * 60 + startMinute,
+        endMinutes: slotEndHour * 60 + slotEndMinute,
+      });
+      
+      // Stop if we've reached 9:00 PM
+      if (slotEndHour >= endHour && slotEndMinute >= endMinute) break;
+      
+      // Move to next slot
+      hour = slotEndHour;
+      minute = slotEndMinute;
     }
+    
+    return slots;
+  };
 
-    // Style data rows (zebra striping)
-    for (let r = 1; r <= sortedSchedules.length; r++) {
-      const even = (r % 2) === 0;
-      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r, c: col });
-        if (wsSchedule[cellAddress]) {
-          wsSchedule[cellAddress].s = {
-            fill: { fgColor: { rgb: even ? "FFFFFF" : "F8FAFC" } },
+  // Check if a schedule time overlaps with a time slot
+  const timeOverlapsWithSlot = (scheduleTime, slot) => {
+    if (!scheduleTime) return false;
+    
+    const timeParts = scheduleTime.split(' - ');
+    if (timeParts.length !== 2) return false;
+    
+    const startTime = timeStringToMinutes(timeParts[0].trim());
+    const endTime = timeStringToMinutes(timeParts[1].trim());
+    
+    if (startTime === -1 || endTime === -1) return false;
+    
+    // Check if schedule overlaps with slot (start before slot ends and end after slot starts)
+    return startTime < slot.endMinutes && endTime > slot.startMinutes;
+  };
+
+  const parseScheduleTimeRange = (scheduleTime) => {
+    if (!scheduleTime) return null;
+    const parts = scheduleTime.split(' - ');
+    if (parts.length !== 2) return null;
+    const start = timeStringToMinutes(parts[0].trim());
+    const end = timeStringToMinutes(parts[1].trim());
+    if (start === -1 || end === -1) return null;
+    return { startMinutes: start, endMinutes: end };
+  };
+
+  // Calculate optimal column widths based on content
+  const calculateColumnWidths = (worksheet, data, minWidth = 10, maxWidth = 50) => {
+    const cols = [];
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    
+    // For each column, find the maximum content length
+    for (let c = 0; c <= range.e.c; c++) {
+      let maxLength = minWidth;
+      
+      // Check all rows in this column
+      for (let r = 0; r <= range.e.r; r++) {
+        const cellRef = XLSX.utils.encode_cell({ r, c });
+        const cell = worksheet[cellRef];
+        
+        if (cell && cell.v) {
+          // Get cell value as string
+          let cellValue = '';
+          if (typeof cell.v === 'string') {
+            cellValue = cell.v;
+          } else if (typeof cell.v === 'number') {
+            cellValue = cell.v.toString();
+          } else if (cell.v.toString) {
+            cellValue = cell.v.toString();
+          }
+          
+          // Calculate length (account for newlines and wrapping)
+          const lines = cellValue.split('\n');
+          const maxLineLength = Math.max(...lines.map(line => line.length));
+          
+          // Add some padding (2-3 characters) and account for wrapping
+          const estimatedWidth = maxLineLength + 3;
+          maxLength = Math.max(maxLength, estimatedWidth);
+        }
+      }
+      
+      // Clamp to min/max
+      const width = Math.min(Math.max(maxLength, minWidth), maxWidth);
+      cols.push({ wch: width });
+    }
+    
+    return cols;
+  };
+
+  // Excel Export (matching admin format but filtered to instructor)
+  const exportToExcel = async () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const timeSlots = generateTimeSlotsForExcel();
+      const generatedLabel = new Date().toLocaleString();
+      const scheduleColorMap = new Map();
+      let scheduleColorCursor = 0;
+      const getScheduleColor = (key) => {
+        if (!scheduleColorMap.has(key)) {
+          const color = scheduleHighlightPalette[scheduleColorCursor % scheduleHighlightPalette.length];
+          scheduleColorMap.set(key, color);
+          scheduleColorCursor += 1;
+        }
+        return scheduleColorMap.get(key);
+      };
+
+      // Get instructor's schedules (already filtered)
+      const allSchedules = filteredSchedule.map(s => ({
+        ...s,
+        time: s.timeDisplay || s.time,
+        course: String(s.course || '').toLowerCase().trim(),
+        year: String(s.year || '').trim(),
+        section: String(s.section || '').trim(),
+      }));
+
+      // Fetch sections and rooms that the instructor uses
+      let allSections = [];
+      let rooms = [];
+      
+      try {
+        // Get unique course/year combinations from instructor's schedules
+        const courseYearSet = new Set();
+        allSchedules.forEach(s => {
+          if (s.course && s.year) {
+            courseYearSet.add(`${s.course}|${s.year}`);
+          }
+        });
+
+        // Fetch sections for those course/year combinations
+        const sectionPromises = [];
+        for (const courseYear of courseYearSet) {
+          const [course, year] = courseYear.split('|');
+          sectionPromises.push(apiClient.get(`/api/sections?course=${course}&year=${year}`));
+        }
+        
+        const sectionsResults = await Promise.all(sectionPromises);
+        allSections = sectionsResults.flatMap(res => 
+          Array.isArray(res.data) ? res.data : []
+        ).filter(s => allSchedules.some(sched => 
+          String(sched.section || '').trim() === String(s.name || '').trim() &&
+          String(sched.course || '').toLowerCase().trim() === String(s.course || '').toLowerCase().trim() &&
+          String(sched.year || '').trim() === String(s.year || '').trim()
+        ));
+
+        // Fetch rooms
+        const roomsRes = await apiClient.getRooms();
+        const allRooms = Array.isArray(roomsRes.data) ? roomsRes.data : (roomsRes.data?.rooms || []);
+        const instructorRoomNames = [...new Set(allSchedules.map(s => s.room).filter(Boolean))];
+        rooms = allRooms.filter(r => instructorRoomNames.includes(r.room || r.name));
+      } catch (err) {
+        console.error('Error fetching sections/rooms:', err);
+      }
+
+      // ========== SCHEDULE SHEETS (One per Department) ==========
+      for (const course of courses) {
+        const sectionColumns = [];
+
+        // Collect sections per course/year first (only instructor's sections)
+        for (const yearLevel of yearLevels) {
+          const courseSections = allSections
+            .filter(s => {
+              const schedCourse = String(s.course || '').toLowerCase().trim();
+              const schedYear = String(s.year || '').trim();
+              return schedCourse === course.id && schedYear === String(yearLevel.year);
+            })
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+          courseSections.forEach(section => {
+            const paletteIndex = sectionColumns.length % scheduleHighlightPalette.length;
+            const highlightColor = scheduleHighlightPalette[paletteIndex];
+            sectionColumns.push({
+              course: course.id,
+              year: yearLevel.year,
+              sectionName: section.name,
+              yearLabel: yearLevel.label,
+              highlightColor,
+            });
+          });
+        }
+
+        if (sectionColumns.length === 0) continue; // Skip if no sections for this course
+
+        const totalColumns = 1 + sectionColumns.length; // Time + sections
+        const scheduleData = [];
+        const { titleRow, subtitleRow, spacerRow } = buildSheetIntroRows(
+          `${course.name} Class Schedule - ${instructorData.firstname} ${instructorData.lastname}`,
+          `Generated: ${generatedLabel}`,
+          totalColumns
+        );
+
+        const titleRowIndex = scheduleData.length;
+        scheduleData.push(titleRow);
+        const subtitleRowIndex = scheduleData.length;
+        scheduleData.push(subtitleRow);
+        const spacerRowIndex = scheduleData.length;
+        scheduleData.push(spacerRow);
+
+        const yearHeaderRow = ['Year Level'];
+        const sectionHeaderRow = ['Time Slot'];
+        const yearSegments = [];
+        let currentSegment = null;
+
+        sectionColumns.forEach((sectionCol, idx) => {
+          const columnIndex = idx + 1; // account for time column
+          yearHeaderRow.push(sectionCol.yearLabel);
+          sectionHeaderRow.push(`${course.shortName}-${sectionCol.year} ${sectionCol.sectionName}`);
+
+          if (!currentSegment || currentSegment.year !== sectionCol.year) {
+            if (currentSegment) yearSegments.push(currentSegment);
+            currentSegment = { year: sectionCol.year, start: columnIndex, end: columnIndex };
+          } else {
+            currentSegment.end = columnIndex;
+          }
+        });
+        if (currentSegment) yearSegments.push(currentSegment);
+
+        const yearHeaderRowIndex = scheduleData.length;
+        scheduleData.push(yearHeaderRow);
+        const sectionHeaderRowIndex = scheduleData.length;
+        scheduleData.push(sectionHeaderRow);
+
+        // Data rows
+        const dataRowMetas = [];
+        
+        // First, collect all schedules and determine which slot index each schedule starts at
+        const scheduleSlotMap = new Map();
+        
+        sectionColumns.forEach((sectionCol, colIndex) => {
+          const sectionSchedules = allSchedules.filter(s => {
+            const schedYear = String(s.year || '').trim();
+            const schedCourse = String(s.course || '').toLowerCase().trim();
+            const schedSection = String(s.section || '').trim();
+
+            return (
+              schedYear === String(sectionCol.year) &&
+              schedCourse === sectionCol.course &&
+              schedSection === sectionCol.sectionName
+            );
+          });
+
+          sectionSchedules.forEach(schedule => {
+            const scheduleKey =
+              schedule._id ||
+              `${schedule.section || ''}|${schedule.subject || ''}|${schedule.day || ''}|${schedule.time || ''}|${schedule.room || ''}`;
+            
+            const timeRange = parseScheduleTimeRange(schedule.time);
+            if (!timeRange) return;
+
+            // Find all slots this schedule spans
+            const slotIndices = [];
+            timeSlots.forEach((slot, slotIndex) => {
+              if (timeOverlapsWithSlot(schedule.time, slot)) {
+                slotIndices.push({ slotIndex, startMinutes: slot.startMinutes });
+              }
+            });
+
+            // Sort by start time to get the order
+            slotIndices.sort((a, b) => a.startMinutes - b.startMinutes);
+
+            if (!scheduleSlotMap.has(scheduleKey)) {
+              scheduleSlotMap.set(scheduleKey, {
+                schedule,
+                columns: new Map(),
+              });
+            }
+            scheduleSlotMap.get(scheduleKey).columns.set(colIndex, slotIndices);
+          });
+        });
+
+        // Now build the rows
+        timeSlots.forEach((slot, slotIndex) => {
+          const row = [slot.label];
+          const metaRow = [null];
+
+          sectionColumns.forEach((sectionCol, colIndex) => {
+            let cellText = '';
+            let cellColor = null;
+
+            // Find which schedule (if any) should display content in this cell
+            for (const [, scheduleData] of scheduleSlotMap.entries()) {
+              const columnSlots = scheduleData.columns.get(colIndex);
+              if (!columnSlots) continue;
+
+              const slotInfo = columnSlots.find(s => s.slotIndex === slotIndex);
+              if (!slotInfo) continue;
+
+              // Find the position of this slot in the schedule's time range
+              const positionInSchedule = columnSlots.findIndex(s => s.slotIndex === slotIndex);
+              
+              const schedule = scheduleData.schedule;
+              const scheduleKeyForColor =
+                schedule._id ||
+                `${schedule.section || ''}|${schedule.subject || ''}|${schedule.day || ''}|${schedule.time || ''}|${schedule.room || ''}`;
+              const highlightColor = getScheduleColor(scheduleKeyForColor);
+              cellColor = cellColor || highlightColor;
+
+              // First cell: Course code - Subject
+              if (positionInSchedule === 0) {
+                const courseCode = schedule.course || '';
+                const subject = schedule.subject || '';
+                cellText = courseCode ? `${courseCode.toUpperCase()} - ${subject}` : subject;
+              }
+              // Second cell: Instructor
+              else if (positionInSchedule === 1) {
+                cellText = `${instructorData.firstname} ${instructorData.lastname}`;
+              }
+              // Third cell: Room
+              else if (positionInSchedule === 2) {
+                cellText = schedule.room || '';
+              }
+              // Remaining cells: blank but still highlighted
+            }
+
+            row.push(cellText);
+            metaRow.push(cellColor);
+          });
+
+          scheduleData.push(row);
+          dataRowMetas.push(metaRow);
+        });
+
+        const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData);
+
+        // Calculate optimal column widths based on content
+        wsSchedule['!cols'] = calculateColumnWidths(wsSchedule, scheduleData, 12, 40);
+
+        wsSchedule['!freeze'] = { xSplit: 1, ySplit: sectionHeaderRowIndex + 1 };
+
+        wsSchedule['!rows'] = wsSchedule['!rows'] || [];
+        wsSchedule['!rows'][titleRowIndex] = { hpt: 28 };
+        wsSchedule['!rows'][subtitleRowIndex] = { hpt: 18 };
+        wsSchedule['!rows'][spacerRowIndex] = { hpt: 6 };
+
+        wsSchedule['!merges'] = [
+          { s: { r: titleRowIndex, c: 0 }, e: { r: titleRowIndex, c: totalColumns - 1 } },
+          { s: { r: subtitleRowIndex, c: 0 }, e: { r: subtitleRowIndex, c: totalColumns - 1 } },
+        ];
+        yearSegments.forEach(segment => {
+          if (segment.start <= segment.end) {
+            wsSchedule['!merges'].push({
+              s: { r: yearHeaderRowIndex, c: segment.start },
+              e: { r: yearHeaderRowIndex, c: segment.end },
+            });
+          }
+        });
+
+        const titleCellRef = XLSX.utils.encode_cell({ r: titleRowIndex, c: 0 });
+        if (wsSchedule[titleCellRef]) {
+          wsSchedule[titleCellRef].s = {
+            font: { sz: 16, bold: true, color: { rgb: '0F172A' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          };
+        }
+        const subtitleCellRef = XLSX.utils.encode_cell({ r: subtitleRowIndex, c: 0 });
+        if (wsSchedule[subtitleCellRef]) {
+          wsSchedule[subtitleCellRef].s = {
+            font: { sz: 10, color: { rgb: '475569' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          };
+        }
+
+        applyRowStyle(wsSchedule, yearHeaderRowIndex, totalColumns, excelSubHeaderStyle);
+        applyRowStyle(wsSchedule, sectionHeaderRowIndex, totalColumns, excelHeaderStyle);
+
+        const totalRows = scheduleData.length;
+        const dataStartRow = sectionHeaderRowIndex + 2; // Excel row number
+        for (let r = dataStartRow; r <= totalRows; r++) {
+          const even = (r - dataStartRow) % 2 === 0;
+          const rowData = scheduleData[r - 1] || [];
+          const metaRow = dataRowMetas[r - dataStartRow] || [];
+          for (let c = 0; c < totalColumns; c++) {
+            const cellRef = XLSX.utils.encode_col(c) + r;
+            if (!wsSchedule[cellRef]) {
+              wsSchedule[cellRef] = { t: 's', v: '' };
+            }
+
+            let fillColor = even ? 'FFFFFF' : 'F8FAFC';
+            if (c > 0) {
+              const cellHighlight = metaRow[c];
+              if (cellHighlight) {
+                fillColor = cellHighlight;
+              } else if (rowData[c]) {
+                const columnMeta = sectionColumns[c - 1];
+                if (columnMeta?.highlightColor) {
+                  fillColor = columnMeta.highlightColor;
+                }
+              }
+            }
+
+            wsSchedule[cellRef].s = {
+              fill: { fgColor: { rgb: fillColor } },
+              border: {
+                left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+                right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+                top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+                bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              },
+              alignment: {
+                horizontal: c === 0 ? 'center' : 'left',
+                vertical: 'top',
+                wrapText: true,
+              },
+              font: { color: { rgb: '0F172A' }, sz: c === 0 ? 9 : 10 },
+            };
+          }
+        }
+
+        XLSX.utils.book_append_sheet(wb, wsSchedule, course.shortName);
+      }
+
+      // ========== SECTIONS SHEET ==========
+      const sectionsData = [['Section', 'Course', 'Year', 'Total Classes', 'Subjects', 'Rooms Used', 'Instructor']];
+      
+      allSections.forEach(section => {
+        const sectionSchedules = allSchedules.filter(s => s.section === section.name);
+        const subjects = [...new Set(sectionSchedules.map(s => s.subject).filter(Boolean))].join(', ');
+        const roomsUsed = [...new Set(sectionSchedules.map(s => s.room).filter(Boolean))].join(', ');
+        
+        sectionsData.push([
+          section.name || '',
+          section.course ? courses.find(c => c.id === section.course.toLowerCase())?.shortName || section.course : '',
+          section.year ? `${section.year}${section.year === 1 ? 'st' : section.year === 2 ? 'nd' : section.year === 3 ? 'rd' : 'th'} Year` : '',
+          sectionSchedules.length,
+          subjects || '-',
+          roomsUsed || '-',
+          `${instructorData.firstname} ${instructorData.lastname}`
+        ]);
+      });
+
+      let sectionsColumnCount = sectionsData[0]?.length || 0;
+      if (sectionsData.length > 0) {
+        sectionsColumnCount = sectionsData[0].length;
+        const introRows = buildSheetIntroRows('Sections Overview', `Generated: ${generatedLabel}`, sectionsColumnCount);
+        sectionsData.unshift(introRows.spacerRow);
+        sectionsData.unshift(introRows.subtitleRow);
+        sectionsData.unshift(introRows.titleRow);
+      }
+      
+      const wsSections = XLSX.utils.aoa_to_sheet(sectionsData);
+      wsSections['!cols'] = calculateColumnWidths(wsSections, sectionsData, 12, 50);
+      wsSections['!freeze'] = { xSplit: 0, ySplit: 4 };
+      const sectionsLastCol = sectionsColumnCount > 0 ? XLSX.utils.encode_col(sectionsColumnCount - 1) : 'A';
+      wsSections['!autofilter'] = { ref: `A4:${sectionsLastCol}${sectionsData.length}` };
+      wsSections['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(sectionsColumnCount - 1, 0) } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: Math.max(sectionsColumnCount - 1, 0) } },
+      ];
+      wsSections['!rows'] = [
+        { hpt: 26 },
+        { hpt: 18 },
+        { hpt: 6 },
+      ];
+      
+      const sectionsTitleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+      if (wsSections[sectionsTitleCell]) {
+        wsSections[sectionsTitleCell].s = {
+          font: { sz: 14, bold: true, color: { rgb: '0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      const sectionsSubtitleCell = XLSX.utils.encode_cell({ r: 1, c: 0 });
+      if (wsSections[sectionsSubtitleCell]) {
+        wsSections[sectionsSubtitleCell].s = {
+          font: { sz: 10, color: { rgb: '475569' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      
+      applyRowStyle(wsSections, 3, sectionsColumnCount, excelHeaderStyle);
+      
+      for (let r = 5; r <= sectionsData.length; r++) {
+        const even = (r - 5) % 2 === 0;
+        for (let c = 0; c < sectionsColumnCount; c++) {
+          const cellRef = XLSX.utils.encode_col(c) + r;
+          if (!wsSections[cellRef]) {
+            wsSections[cellRef] = { t: 's', v: '' };
+          }
+          wsSections[cellRef].s = {
+            fill: { fgColor: { rgb: even ? 'FFFFFF' : 'F8FAFC' } },
             border: {
-              left: { style: 'thin', color: { rgb: "E5E7EB" } },
-              right: { style: 'thin', color: { rgb: "E5E7EB" } },
-              top: { style: 'thin', color: { rgb: "E5E7EB" } },
-              bottom: { style: 'thin', color: { rgb: "E5E7EB" } },
+              left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
             },
-            alignment: { vertical: "center" },
+            alignment: { horizontal: c >= 4 ? 'left' : 'center', vertical: 'center', wrapText: true },
+            font: { color: { rgb: '1E293B' }, sz: 11 },
           };
         }
       }
+      
+      XLSX.utils.book_append_sheet(wb, wsSections, 'Sections');
+
+      // ========== ROOM SHEET ==========
+      const roomsData = [['Room', 'Area / Location', 'Status', 'Total Classes', 'Sections Using', 'Subjects Using']];
+      
+      rooms.forEach(room => {
+        const roomSchedules = allSchedules.filter(s => s.room === (room.room || room.name));
+        const sectionsUsing = [...new Set(roomSchedules.map(s => s.section).filter(Boolean))].join(', ');
+        const subjectsUsing = [...new Set(roomSchedules.map(s => s.subject).filter(Boolean))].join(', ');
+        
+        roomsData.push([
+          room.room || room.name || '-',
+          room.area || room.location || '-',
+          room.status || 'available',
+          roomSchedules.length,
+          sectionsUsing || '-',
+          subjectsUsing || '-'
+        ]);
+      });
+
+      let roomsColumnCount = roomsData[0]?.length || 0;
+      if (roomsData.length > 0) {
+        roomsColumnCount = roomsData[0].length;
+        const introRows = buildSheetIntroRows('Rooms Utilization', `Generated: ${generatedLabel}`, roomsColumnCount);
+        roomsData.unshift(introRows.spacerRow);
+        roomsData.unshift(introRows.subtitleRow);
+        roomsData.unshift(introRows.titleRow);
+      }
+      
+      const wsRooms = XLSX.utils.aoa_to_sheet(roomsData);
+      wsRooms['!cols'] = calculateColumnWidths(wsRooms, roomsData, 12, 50);
+      wsRooms['!freeze'] = { xSplit: 0, ySplit: 4 };
+      const roomsLastCol = roomsColumnCount > 0 ? XLSX.utils.encode_col(roomsColumnCount - 1) : 'A';
+      wsRooms['!autofilter'] = { ref: `A4:${roomsLastCol}${roomsData.length}` };
+      wsRooms['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(roomsColumnCount - 1, 0) } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: Math.max(roomsColumnCount - 1, 0) } },
+      ];
+      wsRooms['!rows'] = [
+        { hpt: 26 },
+        { hpt: 18 },
+        { hpt: 6 },
+      ];
+      
+      const roomsTitleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+      if (wsRooms[roomsTitleCell]) {
+        wsRooms[roomsTitleCell].s = {
+          font: { sz: 14, bold: true, color: { rgb: '0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      const roomsSubtitleCell = XLSX.utils.encode_cell({ r: 1, c: 0 });
+      if (wsRooms[roomsSubtitleCell]) {
+        wsRooms[roomsSubtitleCell].s = {
+          font: { sz: 10, color: { rgb: '475569' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      
+      applyRowStyle(wsRooms, 3, roomsColumnCount, excelHeaderStyle);
+      
+      for (let r = 5; r <= roomsData.length; r++) {
+        const even = (r - 5) % 2 === 0;
+        for (let c = 0; c < roomsColumnCount; c++) {
+          const cellRef = XLSX.utils.encode_col(c) + r;
+          if (!wsRooms[cellRef]) {
+            wsRooms[cellRef] = { t: 's', v: '' };
+          }
+          wsRooms[cellRef].s = {
+            fill: { fgColor: { rgb: even ? 'FFFFFF' : 'F8FAFC' } },
+            border: {
+              left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            },
+            alignment: { horizontal: c >= 4 ? 'left' : 'center', vertical: 'center', wrapText: true },
+            font: { color: { rgb: '1E293B' }, sz: 11 },
+          };
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(wb, wsRooms, 'Room');
+
+      // ========== INSTRUCTOR SHEET ==========
+      const instructorsData = [['Name', 'Email', 'Department', 'Total Classes', 'Sections', 'Subjects', 'Rooms']];
+      
+      instructorsData.push([
+        `${instructorData.firstname} ${instructorData.lastname}` || '-',
+        instructorData.email || '-',
+        instructorData.department || '-',
+        allSchedules.length,
+        [...new Set(allSchedules.map(s => s.section).filter(Boolean))].join(', ') || '-',
+        [...new Set(allSchedules.map(s => s.subject).filter(Boolean))].join(', ') || '-',
+        [...new Set(allSchedules.map(s => s.room).filter(Boolean))].join(', ') || '-'
+      ]);
+
+      let instructorsColumnCount = instructorsData[0]?.length || 0;
+      if (instructorsData.length > 0) {
+        instructorsColumnCount = instructorsData[0].length;
+        const introRows = buildSheetIntroRows('Instructor Workload', `Generated: ${generatedLabel}`, instructorsColumnCount);
+        instructorsData.unshift(introRows.spacerRow);
+        instructorsData.unshift(introRows.subtitleRow);
+        instructorsData.unshift(introRows.titleRow);
+      }
+      
+      const wsInstructors = XLSX.utils.aoa_to_sheet(instructorsData);
+      wsInstructors['!cols'] = calculateColumnWidths(wsInstructors, instructorsData, 12, 50);
+      wsInstructors['!freeze'] = { xSplit: 0, ySplit: 4 };
+      const instructorsLastCol = instructorsColumnCount > 0 ? XLSX.utils.encode_col(instructorsColumnCount - 1) : 'A';
+      wsInstructors['!autofilter'] = { ref: `A4:${instructorsLastCol}${instructorsData.length}` };
+      wsInstructors['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(instructorsColumnCount - 1, 0) } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: Math.max(instructorsColumnCount - 1, 0) } },
+      ];
+      wsInstructors['!rows'] = [
+        { hpt: 26 },
+        { hpt: 18 },
+        { hpt: 6 },
+      ];
+      
+      const instructorsTitleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+      if (wsInstructors[instructorsTitleCell]) {
+        wsInstructors[instructorsTitleCell].s = {
+          font: { sz: 14, bold: true, color: { rgb: '0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      const instructorsSubtitleCell = XLSX.utils.encode_cell({ r: 1, c: 0 });
+      if (wsInstructors[instructorsSubtitleCell]) {
+        wsInstructors[instructorsSubtitleCell].s = {
+          font: { sz: 10, color: { rgb: '475569' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      
+      applyRowStyle(wsInstructors, 3, instructorsColumnCount, excelHeaderStyle);
+      
+      for (let r = 5; r <= instructorsData.length; r++) {
+        const even = (r - 5) % 2 === 0;
+        for (let c = 0; c < instructorsColumnCount; c++) {
+          const cellRef = XLSX.utils.encode_col(c) + r;
+          if (!wsInstructors[cellRef]) {
+            wsInstructors[cellRef] = { t: 's', v: '' };
+          }
+          wsInstructors[cellRef].s = {
+            fill: { fgColor: { rgb: even ? 'FFFFFF' : 'F8FAFC' } },
+            border: {
+              left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+              bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            },
+            alignment: { horizontal: c >= 4 ? 'left' : 'center', vertical: 'center', wrapText: true },
+            font: { color: { rgb: '1E293B' }, sz: 11 },
+          };
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(wb, wsInstructors, 'Instructor');
+
+      // Save the workbook
+      const fileName = `Teaching_Schedule_${instructorData.firstname}_${instructorData.lastname}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      // Log the download activity
+      logReportDownload('Excel');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export Excel file. Please try again.');
     }
-
-    wsSchedule['!freeze'] = { xSplit: 0, ySplit: 1 };
-    wsSchedule['!autofilter'] = { ref: `A1:G${sortedSchedules.length + 1}` };
-    XLSX.utils.book_append_sheet(wb, wsSchedule, 'Schedule');
-
-    // Save file
-    XLSX.writeFile(wb, `Teaching_Schedule_${instructorData.firstname}_${instructorData.lastname}.xlsx`);
-    
-    // Log the download activity
-    logReportDownload('Excel');
   };
 
   const displayedWeekdays = filterDay !== "All Days"
@@ -779,10 +1397,6 @@ const InstructorReports = () => {
             <button onClick={() => window.open('/instructor/workload', '_blank')} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: 'linear-gradient(100deg,#8b5cf6,#6d28d9)', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(139, 92, 246, 0.3)' }}>
               <FontAwesomeIcon icon={faChartBar}/>
               Workload
-          </button>
-            <button onClick={downloadReport} style={{ padding: '10px 19px', borderRadius: 10, fontWeight: 700, border: 'none', background: 'linear-gradient(100deg,#0f2c63,#1e40af)', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px #1e40af33' }}>
-              <FontAwesomeIcon icon={faDownload}/>
-            Download CSV
           </button>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, flex: 1 }}>
               <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
