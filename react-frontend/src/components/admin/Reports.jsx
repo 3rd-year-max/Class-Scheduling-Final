@@ -1119,56 +1119,21 @@ const Reports = () => {
 
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#fafafa' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Reports" />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Welcome Section */}
-          <div className="welcome-section" style={{ 
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            padding: '20px 24px',
-            borderRadius: '16px',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}>
-                <FontAwesomeIcon icon={faChartBar} style={{ fontSize: 28, color: '#fff' }} />
-              </div>
-              <div>
-                <h2 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: '700', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>Class Schedule Reports</h2>
-                <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>Export comprehensive reports including schedules, sections, rooms, and instructors</p>
-              </div>
-            </div>
-          </div>
+        <div className="dashboard-content" style={{ marginTop: '140px', background: '#fafafa' }}>
 
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>Class Schedule Reports</h2>
+          <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>Export comprehensive reports including schedules, sections, rooms, and instructors</p>
           {/* Export Section */}
           {loading ? (
             <div style={{ 
               textAlign: 'center', 
               padding: '40px', 
               color: '#64748b',
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              background: '#ffffff',
               borderRadius: '16px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(15, 44, 99, 0.1)'
@@ -1178,7 +1143,7 @@ const Reports = () => {
           ) : (
             <div
               style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                background: '#ffffff',
                 padding: '32px',
                 borderRadius: '16px',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
@@ -1195,17 +1160,13 @@ const Reports = () => {
                 left: 0,
                 width: '4px',
                 height: '100%',
-                background: 'linear-gradient(180deg, #f97316 0%, #ea580c 100%)',
+                background: '#f97316',
               }} />
               <h3 style={{ 
                 fontSize: '20px', 
                 fontWeight: '700', 
-                color: '#1e293b', 
-                marginBottom: '10px',
-                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
+                color: '#0f2c63', 
+                marginBottom: '10px'
               }}>
                 Export Reports
               </h3>
@@ -1218,7 +1179,7 @@ const Reports = () => {
                   onClick={exportToExcel}
                   style={{
                     padding: '14px 28px',
-                    background: 'linear-gradient(135deg, #22d3ee 0%, #0e7490 100%)',
+                    background: '#0e7490',
                     color: 'white',
                     border: 'none',
                     borderRadius: '10px',
@@ -1228,16 +1189,18 @@ const Reports = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
-                    boxShadow: '0 4px 12px rgba(14, 116, 144, 0.3)',
+                    boxShadow: '0 4px 12px rgba(14, 116, 144, 0.2)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(14, 116, 144, 0.4)';
+                    e.currentTarget.style.background = '#155e75';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(14, 116, 144, 0.3)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 116, 144, 0.3)';
+                    e.currentTarget.style.background = '#0e7490';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 116, 144, 0.2)';
                   }}
                 >
                   <FontAwesomeIcon icon={faDownload} />
@@ -1247,7 +1210,7 @@ const Reports = () => {
                   onClick={exportToPDF}
                   style={{
                     padding: '14px 28px',
-                    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                    background: '#dc2626',
                     color: 'white',
                     border: 'none',
                     borderRadius: '10px',
@@ -1257,16 +1220,18 @@ const Reports = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
-                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(220, 38, 38, 0.4)';
+                    e.currentTarget.style.background = '#b91c1c';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(220, 38, 38, 0.3)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.3)';
+                    e.currentTarget.style.background = '#dc2626';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.2)';
                   }}
                 >
                   <FontAwesomeIcon icon={faDownload} />
@@ -1277,7 +1242,7 @@ const Reports = () => {
               <div style={{ 
                 marginTop: '28px', 
                 padding: '20px', 
-                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
+                background: '#f8fafc', 
                 borderRadius: '12px', 
                 textAlign: 'left',
                 border: '1px solid rgba(15, 44, 99, 0.1)',

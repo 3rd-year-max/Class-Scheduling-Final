@@ -3,7 +3,7 @@ import InstructorSidebar from "../common/InstructorSidebar.jsx";
 import InstructorHeader from "../common/InstructorHeader.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faDownload, faFileAlt, faCalendarAlt, faClock, faUser,
+  faDownload, faFileAlt, faCalendarAlt, faClock,
   faSearch, faDoorOpen, faGraduationCap, faTable, faChartBar,
 } from "@fortawesome/free-solid-svg-icons";
 import { AuthContext } from "../../context/AuthContext.jsx";
@@ -34,6 +34,7 @@ const InstructorReports = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig] = useState({ key: "day", direction: "asc" });
   const [filterDay, setFilterDay] = useState("All Days");
+  const [filterYear, setFilterYear] = useState("All Years");
   const [filteredSchedule, setFilteredSchedule] = useState([]);
   const [viewMode, setViewMode] = useState("grid"); // grid or table
 
@@ -45,6 +46,7 @@ const InstructorReports = () => {
       shortName: 'BSIT',
       icon: faGraduationCap,
       gradient: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+      color: '#0f2c63',
     },
     {
       id: 'bsemc-dat',
@@ -52,6 +54,7 @@ const InstructorReports = () => {
       shortName: 'BSEMC-DAT',
       icon: faCode,
       gradient: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+      color: '#7c3aed',
     },
   ], []);
 
@@ -307,10 +310,26 @@ const InstructorReports = () => {
       );
     }
 
+    // Year level filter
+    if (filterYear !== "All Years") {
+      filtered = filtered.filter((schedule) => {
+        // Handle both string and number year values
+        const scheduleYear = String(schedule.year || "").trim();
+        const filterYearValue = String(filterYear).trim();
+        // Match year values - handle "1", "1st", "first year", etc.
+        const normalizedScheduleYear = scheduleYear.toLowerCase().replace(/[^0-9]/g, '');
+        const normalizedFilterYear = filterYearValue.replace(/[^0-9]/g, '');
+        // Direct match or extract number from strings like "1st", "2nd", etc.
+        return normalizedScheduleYear === normalizedFilterYear || 
+               scheduleYear === filterYearValue ||
+               String(schedule.year) === filterYearValue;
+      });
+    }
+
     // Sorting
     filtered = sortSchedule(filtered, sortConfig.key, sortConfig.direction);
     setFilteredSchedule(filtered);
-  }, [instructorSchedule, searchTerm, filterDay, sortConfig, sortSchedule, scheduleIncludesDay]);
+  }, [instructorSchedule, searchTerm, filterDay, filterYear, sortConfig, sortSchedule, scheduleIncludesDay]);
 
   // removed old tableSchedules (not used in admin-style table)
 
@@ -696,7 +715,7 @@ const InstructorReports = () => {
   // Excel Export (matching admin format but filtered to instructor)
   const exportToExcel = async () => {
     try {
-      const wb = XLSX.utils.book_new();
+    const wb = XLSX.utils.book_new();
       const timeSlots = generateTimeSlotsForExcel();
       const generatedLabel = new Date().toLocaleString();
       const scheduleColorMap = new Map();
@@ -1259,9 +1278,9 @@ const InstructorReports = () => {
       // Save the workbook
       const fileName = `Teaching_Schedule_${instructorData.firstname}_${instructorData.lastname}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
-      
-      // Log the download activity
-      logReportDownload('Excel');
+    
+    // Log the download activity
+    logReportDownload('Excel');
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       alert('Failed to export Excel file. Please try again.');
@@ -1278,123 +1297,38 @@ const InstructorReports = () => {
   return (
     <div className="dashboard-container" style={{ display: "flex", height: "100vh" }}>
       <InstructorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Welcome Section */}
-          <div className="welcome-section" style={{ 
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(12px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                border: '1px solid rgba(255, 255, 255, 0.3)'
-              }}>
-                <FontAwesomeIcon icon={faFileAlt} style={{ fontSize: 24, color: '#fff' }} />
-              </div>
-              <h2 style={{ 
-                margin: 0, 
-                color: '#ffffff', 
-                fontSize: '24px', 
-                fontWeight: '800',
-                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                letterSpacing: '-0.3px'
-              }}>
-                Class Reports
-              </h2>
-            </div>
-            <p style={{ 
-              margin: '0 0 16px 0', 
-              color: 'rgba(255,255,255,0.95)', 
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              Teaching Reports & Schedules
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 14px', 
-                background: 'rgba(255, 255, 255, 0.25)', 
-                backdropFilter: 'blur(8px)',
-                borderRadius: 8, 
-                color: "#fff", 
-                fontWeight: 700, 
-                fontSize: 13, 
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                border: '1px solid rgba(255, 255, 255, 0.3)'
-              }}>
-                <FontAwesomeIcon icon={faUser} style={{ fontSize: 13 }} />
-                {instructorData.firstname} {instructorData.lastname}
-              </div>
-              {instructorData.department && (
-                <div style={{ 
-                  padding: '6px 12px', 
-                  background: 'rgba(255, 255, 255, 0.25)', 
-                  backdropFilter: 'blur(8px)',
-                  borderRadius: 8, 
-                  color: '#fff', 
-                  fontWeight: 700, 
-                  fontSize: 12, 
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                }}>
-                  {instructorData.department}
-                </div>
-              )}
-              {instructorData.instructorId && (
-                <span style={{ 
-                  padding: "6px 12px", 
-                  background: "rgba(255, 255, 255, 0.25)", 
-                  backdropFilter: 'blur(8px)',
-                  color: "#fff", 
-                  borderRadius: 8, 
-                  fontSize: 12, 
-                  fontWeight: 700,
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                }}>
-                  ID-{instructorData.instructorId}
-                </span>
-              )}
-            </div>
-          </div>
-
+        <div className="dashboard-content" style={{ marginTop: '140px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '800', color: '#1f2937' }}>
+            Class Reports
+          </h2>
+          <p style={{ margin: '0 0 16px 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>
+            Teaching Reports & Schedules
+            {instructorData.firstname && instructorData.lastname && ` - ${instructorData.firstname} ${instructorData.lastname}`}
+            {instructorData.department && ` - ${instructorData.department}`}
+            {instructorData.instructorId && ` - ID-${instructorData.instructorId}`}
+          </p>
           {/* Action/Search Bar */}
           <div style={{ display: 'flex', gap: 18, alignItems: 'center', background: '#fff', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)', borderRadius: 12, padding: '16px 20px', marginBottom: '20px', flexWrap: 'wrap' }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setViewMode("cards")} style={{ padding: '10px 20px', borderRadius: 10, fontWeight: 700, border: 'none', background: viewMode==="cards" ? 'linear-gradient(100deg,#0f2c63,#f97316)' : '#e5e7eb', color: viewMode==="cards" ? 'white' : '#64748b', cursor: 'pointer', boxShadow: '0 2px 8px #0f2c6321', fontSize: 14, display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={() => setViewMode("cards")} style={{ padding: '10px 20px', borderRadius: 10, fontWeight: 700, border: 'none', background: viewMode==="cards" ? '#0f2c63' : '#e5e7eb', color: viewMode==="cards" ? 'white' : '#64748b', cursor: 'pointer', boxShadow: '0 2px 8px rgba(15, 44, 99, 0.1)', fontSize: 14, display: 'flex', gap: 6, alignItems: 'center', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { if (viewMode==="cards") e.currentTarget.style.background = '#1e3a72'; }} onMouseLeave={(e) => { if (viewMode==="cards") e.currentTarget.style.background = '#0f2c63'; }}>
                 <FontAwesomeIcon icon={faCalendarAlt}/> Card View
           </button>
-              <button onClick={() => setViewMode("grid")} style={{ padding: '10px 20px', borderRadius: 10, fontWeight: 700, border: 'none', background: viewMode==="grid" ? 'linear-gradient(100deg,#0f2c63,#f97316)' : '#e5e7eb', color: viewMode==="grid" ? 'white' : '#64748b', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 6, alignItems: 'center', boxShadow: '0 2px 8px #0f2c6321' }}>
+              <button onClick={() => setViewMode("grid")} style={{ padding: '10px 20px', borderRadius: 10, fontWeight: 700, border: 'none', background: viewMode==="grid" ? '#0f2c63' : '#e5e7eb', color: viewMode==="grid" ? 'white' : '#64748b', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 6, alignItems: 'center', boxShadow: '0 2px 8px rgba(15, 44, 99, 0.1)', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { if (viewMode==="grid") e.currentTarget.style.background = '#1e3a72'; }} onMouseLeave={(e) => { if (viewMode==="grid") e.currentTarget.style.background = '#0f2c63'; }}>
                 <FontAwesomeIcon icon={faTable}/>
                 Table View
           </button>
             </div>
-            <button onClick={exportToPDF} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: 'linear-gradient(100deg,#dc2626,#ef4444)', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(220, 38, 38, 0.3)' }}>
+            <button onClick={exportToPDF} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: '#dc2626', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(220, 38, 38, 0.2)', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#b91c1c'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.3)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(220, 38, 38, 0.2)'; }}>
               <FontAwesomeIcon icon={faDownload}/>
               PDF
           </button>
-            <button onClick={exportToExcel} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: 'linear-gradient(100deg,#22d3ee,#0e7490)', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(34, 211, 238, 0.3)' }}>
+            <button onClick={exportToExcel} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: '#0e7490', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(14, 116, 144, 0.2)', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#155e75'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 116, 144, 0.3)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(14, 116, 144, 0.2)'; }}>
               <FontAwesomeIcon icon={faDownload}/>
               Excel
           </button>
-            <button onClick={() => window.open('/instructor/workload', '_blank')} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: 'linear-gradient(100deg,#8b5cf6,#6d28d9)', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(139, 92, 246, 0.3)' }}>
+            <button onClick={() => window.open('/instructor/workload', '_blank')} style={{ padding: '10px 17px', borderRadius: 10, fontWeight: 700, border: 'none', background: '#8b5cf6', color: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 2px 10px rgba(139, 92, 246, 0.2)', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#7c3aed'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#8b5cf6'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(139, 92, 246, 0.2)'; }}>
               <FontAwesomeIcon icon={faChartBar}/>
               Workload
           </button>
@@ -1408,6 +1342,13 @@ const InstructorReports = () => {
                 {weekDays.map(day => (
                 <option key={day.key} value={day.key}>{day.label}</option>
               ))}
+            </select>
+            <select value={filterYear} onChange={e => setFilterYear(e.target.value)} style={{ minWidth: 130, padding: '12px 12px 12px 20px', border: '2px solid #0f2c63', background: 'white', color: '#0f2c63', fontWeight: 700, borderRadius: 8, outline: 'none', fontSize: 14 }}>
+                <option value="All Years">Filter: All Years</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
             </select>
           </div>
           </div>
@@ -1433,15 +1374,15 @@ const InstructorReports = () => {
                     const items = filteredSchedule.filter(s => normalizeDayTokens(s.day).includes(dayToken));
                 return (
                       <div key={day.key} style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 18px #0f2c6334', flex: '1 1 280px', minWidth: 270, maxWidth: 320, minHeight: 236, display: 'flex', flexDirection: 'column', marginBottom: 8, border: `3px solid ${items.length ? '#f97316' : '#e5e7eb'}` }}>
-                        <div style={{ background: 'linear-gradient(120deg, #0f2c63 40%, #f97316 100%)', color: '#fff', fontWeight: 800, fontSize: 18, padding: '14px 0 14px 0', textAlign: 'center', borderTopLeftRadius: 14, borderTopRightRadius: 14, letterSpacing: '.7px' }}>{day.label}</div>
+                        <div style={{ background: '#0f2c63', color: '#fff', fontWeight: 800, fontSize: 18, padding: '14px 0 14px 0', textAlign: 'center', borderTopLeftRadius: 14, borderTopRightRadius: 14, letterSpacing: '.7px' }}>{day.label}</div>
                         <div style={{ padding: '22px 18px 10px 18px', display: 'flex', flexDirection: 'column', gap: 18, flex: 1, justifyContent: items.length ? 'flex-start' : 'center', alignItems:'stretch' }}>
                           {items.length === 0 ? (<div style={{ textAlign: 'center', fontSize: 15, color: '#cbd5e1', paddingTop: 32 }}>No classes</div>) : (
                             items.map((s, idx) => (
-                              <div key={idx} style={{ background: 'linear-gradient(120deg,#f9fafc 80%,#fff0)', borderRadius: 14, boxShadow: '0 1px 5px #ecf0f311', padding: '17px 11px 12px 14px', display: 'flex', flexDirection: 'column', gap: 7, borderLeft: '5px solid #f97316', position:'relative' }}>
+                              <div key={idx} style={{ background: '#f9fafc', borderRadius: 14, boxShadow: '0 1px 5px rgba(236, 240, 243, 0.1)', padding: '17px 11px 12px 14px', display: 'flex', flexDirection: 'column', gap: 7, borderLeft: '5px solid #f97316', position:'relative' }}>
                                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1e40af', marginBottom: 2 }}>{s.subject}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                                   <span style={{
-                                    background: 'linear-gradient(90deg, #0f2c63 0%, #f97316 100%)',
+                                    background: '#0f2c63',
                                     color: 'white',
                                     fontWeight: 900,
                                     fontSize: 15,
@@ -1473,9 +1414,9 @@ const InstructorReports = () => {
                   {/* Compute displayedWeekdays based on filterDay */}
                   <div style={{ display: 'grid', gridTemplateColumns: '120px repeat(' + displayedWeekdays.length + ', 1fr)', minWidth: 900 }}>
                     {/* Grid Header */}
-                    <div style={{ background: 'linear-gradient(120deg,#0f2c63,#f97316 85%)', color:'#fff', fontWeight:800, fontSize:16, textAlign: 'center', padding:'18px 0', letterSpacing:'0.7px', borderTopLeftRadius:14 }}>Time</div>
+                    <div style={{ background: '#0f2c63', color:'#fff', fontWeight:800, fontSize:16, textAlign: 'center', padding:'18px 0', letterSpacing:'0.7px', borderTopLeftRadius:14 }}>Time</div>
                     {displayedWeekdays.map((day,idx) => (
-                      <div key={day.key} style={{ background: 'linear-gradient(120deg,#0f2c63,#f97316 85%)', color:'#fff', fontWeight:800, fontSize:16, textAlign:'center', padding:'18px 0', borderTopRightRadius: idx===displayedWeekdays.length-1?14:0 }}>{day.label}</div>
+                      <div key={day.key} style={{ background: '#0f2c63', color:'#fff', fontWeight:800, fontSize:16, textAlign:'center', padding:'18px 0', borderTopRightRadius: idx===displayedWeekdays.length-1?14:0 }}>{day.label}</div>
                     ))}
                     {/* Grid Body */}
                     {timeSlots.map((slot, slotIndex) => {
@@ -1512,7 +1453,7 @@ const InstructorReports = () => {
                             <div key={day.key+'-'+slotIndex} style={{
                               gridRow: `span ${rowSpan}`,
                               minHeight: 44*rowSpan, display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center', padding:'0px 4px',
-                              background:'linear-gradient(120deg,#0f2c63 60%,#f97316 100%)',
+                              background:'#0f2c63',
                               borderRadius:11, color:'#fff', fontWeight:800, fontSize:15, boxShadow:'0 4px 16px #0f2c6321', position:'relative', border: '2px solid #f97316', margin:'2px 3px'
                             }}>
                               <div style={{fontWeight:900, fontSize:15,marginBottom:2}}>{scheduleStartHere.subject}</div>

@@ -136,18 +136,41 @@ const parseTime = (timeStr) => {
 };
 
 /**
- * Get the next occurrence of a given day
+ * Get current date/time components in Philippines timezone (Asia/Manila, UTC+8)
+ * Returns an object with date components in Philippines time
+ */
+const getPhilippinesTimeComponents = () => {
+  const now = new Date();
+  // Get UTC time in milliseconds
+  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+  // Philippines is UTC+8, so add 8 hours (8 * 60 * 60 * 1000 milliseconds)
+  const philippinesOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+  const philippinesTime = new Date(utcTime + philippinesOffset);
+  
+  return {
+    year: philippinesTime.getUTCFullYear(),
+    month: philippinesTime.getUTCMonth(),
+    date: philippinesTime.getUTCDate(),
+    day: philippinesTime.getUTCDay(),
+    hours: philippinesTime.getUTCHours(),
+    minutes: philippinesTime.getUTCMinutes(),
+    seconds: philippinesTime.getUTCSeconds()
+  };
+};
+
+/**
+ * Get the next occurrence of a given day (using Philippines timezone)
  */
 const getNextDayOccurrence = (dayOfWeek, time) => {
-  const now = new Date();
-  const day = now.getDay();
+  const phTime = getPhilippinesTimeComponents(); // Use Philippines time
+  const day = phTime.day;
   
   // Calculate days until next occurrence
   let daysUntil = dayOfWeek - day;
   if (daysUntil < 0 || (daysUntil === 0 && time)) {
     const currentTime = parseTime(time);
     if (currentTime) {
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const nowMinutes = phTime.hours * 60 + phTime.minutes;
       const eventMinutes = currentTime.hours * 60 + currentTime.minutes;
       if (nowMinutes >= eventMinutes) {
         daysUntil += 7;
@@ -157,8 +180,16 @@ const getNextDayOccurrence = (dayOfWeek, time) => {
     }
   }
   
-  const nextOccurrence = new Date(now);
-  nextOccurrence.setDate(now.getDate() + daysUntil);
+  // Create date in Philippines timezone
+  const targetDate = phTime.date + daysUntil;
+  const targetMonth = phTime.month;
+  const targetYear = phTime.year;
+  
+  // Create a date object representing the target date/time in Philippines
+  // We'll create it as UTC and then adjust
+  const nextOccurrence = new Date(Date.UTC(targetYear, targetMonth, targetDate, 0, 0, 0));
+  // Subtract 8 hours to get the correct UTC time that represents Philippines time
+  nextOccurrence.setUTCHours(nextOccurrence.getUTCHours() - 8);
   
   return nextOccurrence;
 };
@@ -185,7 +216,6 @@ const getNextOccurrenceForDays = (days, time) => {
     .map(d => dayToDayOfWeek(d))
     .filter(d => d !== null);
   if (!dayNumbers.length) throw new Error('Invalid days provided');
-  const now = new Date();
   let bestDate = null;
   for (const d of dayNumbers) {
     const candidate = getNextDayOccurrence(d, time);
@@ -195,7 +225,50 @@ const getNextOccurrenceForDays = (days, time) => {
 };
 
 /**
- * Convert schedule day and time to Google Calendar date
+ * Get academic year start and end dates (June to May)
+ * Returns { start: Date, end: Date }
+ */
+const getAcademicYearDates = () => {
+  const phTime = getPhilippinesTimeComponents();
+  const currentYear = phTime.year;
+  const currentMonth = phTime.month + 1; // getPhilippinesTimeComponents returns 0-based month
+  
+  let academicYearStart, academicYearEnd;
+  if (currentMonth >= 6) {
+    // June onwards - we're in the current academic year, which ends next May
+    academicYearStart = new Date(currentYear, 5, 1, 0, 0, 0); // June 1st (month is 0-based, so 5 = June)
+    academicYearEnd = new Date(currentYear + 1, 4, 31, 23, 59, 59); // May 31st of next year
+  } else {
+    // January to May - we're in the second semester, academic year started last June
+    academicYearStart = new Date(currentYear - 1, 5, 1, 0, 0, 0); // June 1st of last year
+    academicYearEnd = new Date(currentYear, 4, 31, 23, 59, 59); // May 31st of current year
+  }
+  
+  return { start: academicYearStart, end: academicYearEnd };
+};
+
+/**
+ * Get the first occurrence of a specific day of week in the academic year
+ * This ensures events appear on ALL matching days throughout the year
+ */
+const getFirstOccurrenceInAcademicYear = (dayOfWeek, hours, minutes) => {
+  const { start: academicYearStart } = getAcademicYearDates();
+  const firstDayOfWeek = academicYearStart.getDay();
+  
+  // Calculate days until first occurrence of target day
+  let daysToFirstOccurrence = dayOfWeek - firstDayOfWeek;
+  if (daysToFirstOccurrence < 0) daysToFirstOccurrence += 7;
+  
+  // Create date for first occurrence
+  const firstOccurrence = new Date(academicYearStart);
+  firstOccurrence.setDate(academicYearStart.getDate() + daysToFirstOccurrence);
+  firstOccurrence.setHours(hours, minutes, 0, 0);
+  
+  return firstOccurrence;
+};
+
+/**
+ * Convert schedule day and time to Google Calendar date (in Philippines timezone)
  */
 const scheduleToDate = (day, time) => {
   const dayOfWeek = dayToDayOfWeek(day);
@@ -207,7 +280,22 @@ const scheduleToDate = (day, time) => {
   const timeData = parseTime(time);
   
   if (timeData) {
-    date.setHours(timeData.hours, timeData.minutes, 0, 0);
+    // Set hours in Philippines timezone
+    // Get current date components in Philippines time
+    const phTime = getPhilippinesTimeComponents();
+    const targetDate = date;
+    // Calculate the target date in Philippines time
+    const phDate = new Date(Date.UTC(
+      targetDate.getUTCFullYear(),
+      targetDate.getUTCMonth(),
+      targetDate.getUTCDate(),
+      timeData.hours,
+      timeData.minutes,
+      0
+    ));
+    // Adjust for Philippines timezone (UTC+8)
+    phDate.setUTCHours(phDate.getUTCHours() - 8);
+    return phDate;
   }
   
   return date;
@@ -245,31 +333,88 @@ export const createCalendarEvent = async (schedule, instructorEmail) => {
     }
     
     const days = getDaysArray(schedule);
-    const startDate = days.length
-      ? getNextOccurrenceForDays(days, timeParts[0].trim())
-      : scheduleToDate(schedule.day, timeParts[0].trim());
-    // Ensure start time is set when using multi-day helper
+    
+    // Get Philippines time components to calculate the correct day
+    const phTime = getPhilippinesTimeComponents();
+    
+    // Calculate next occurrence day in Philippines timezone
     const startTimeParsed = parseTime(timeParts[0].trim());
-    if (startTimeParsed) {
-      startDate.setHours(startTimeParsed.hours, startTimeParsed.minutes, 0, 0);
+    if (!startTimeParsed) throw new Error('Invalid start time');
+    
+    let dayOfWeek = null;
+    if (days.length) {
+      // For multiple days, find the next occurrence
+      const dayNumbers = days.map(d => dayToDayOfWeek(d)).filter(d => d !== null);
+      if (!dayNumbers.length) throw new Error('Invalid days provided');
+      
+      let daysUntil = 7;
+      for (const d of dayNumbers) {
+        let diff = d - phTime.day;
+        if (diff < 0 || (diff === 0 && (phTime.hours * 60 + phTime.minutes) >= (startTimeParsed.hours * 60 + startTimeParsed.minutes))) {
+          diff += 7;
+        }
+        if (diff < daysUntil) {
+          daysUntil = diff;
+          dayOfWeek = d;
+        }
+      }
+    } else {
+      dayOfWeek = dayToDayOfWeek(schedule.day);
+      if (dayOfWeek === null) throw new Error(`Invalid day: ${schedule.day}`);
     }
-    const endDate = new Date(startDate);
+    
+    // Format as ISO string in Philippines timezone
+    const formatDateTimeForPhilippines = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    };
+    
+    // For recurring events, use the first occurrence of the day in the academic year
+    // This ensures the event appears on ALL matching days (e.g., all Mondays) throughout the year
+    const targetDate = getFirstOccurrenceInAcademicYear(dayOfWeek, startTimeParsed.hours, startTimeParsed.minutes);
+    const startDateStr = formatDateTimeForPhilippines(targetDate);
+    
+    // Calculate end date
     const endTimeParsed = parseTime(timeParts[1].trim());
     if (!endTimeParsed) throw new Error('Invalid end time');
+    
+    const endDate = new Date(targetDate);
     endDate.setHours(endTimeParsed.hours, endTimeParsed.minutes, 0, 0);
     
     // If start time is after end time, add a day to end date
-    if (endDate <= startDate) {
+    if (endDate <= targetDate) {
       endDate.setDate(endDate.getDate() + 1);
     }
+    
+    const endDateStr = formatDateTimeForPhilippines(endDate);
     
     const rruleDays = (days.length ? days : [schedule.day])
       .map(d => dayToRRULEDay(d))
       .filter(Boolean)
       .join(',');
 
+    // Get academic year end date
+    const { end: academicYearEnd } = getAcademicYearDates();
+    
+    // Convert academic year end to UTC for RRULE UNTIL (Philippines is UTC+8, so subtract 8 hours)
+    const academicYearEndUTC = new Date(academicYearEnd.getTime() - (8 * 60 * 60 * 1000));
+    // Format for RRULE UNTIL: YYYYMMDDTHHMMSSZ (UTC)
+    const year = academicYearEndUTC.getUTCFullYear();
+    const month = String(academicYearEndUTC.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(academicYearEndUTC.getUTCDate()).padStart(2, '0');
+    const untilDate = `${year}${month}${day}T235959Z`;
+    
+    // Create recurrence rule: FREQ=WEEKLY means it repeats every week
+    // BYDAY specifies which days (e.g., MO for Monday, TU for Tuesday)
+    // UNTIL specifies when to stop (end of academic year)
+    // This ensures: Monday schedule → appears on ALL Mondays, Tuesday schedule → appears on ALL Tuesdays, etc.
     const recurrenceRule = rruleDays
-      ? `RRULE:FREQ=WEEKLY;BYDAY=${rruleDays}`
+      ? `RRULE:FREQ=WEEKLY;BYDAY=${rruleDays};UNTIL=${untilDate}`
       : null;
 
     const event = {
@@ -277,11 +422,11 @@ export const createCalendarEvent = async (schedule, instructorEmail) => {
       description: `Course: ${schedule.course}\nYear: ${schedule.year}\nSection: ${schedule.section}\nRoom: ${schedule.room}`,
       location: schedule.room,
       start: {
-        dateTime: startDate.toISOString(),
-        timeZone: 'Asia/Manila', // Adjust to your timezone
+        dateTime: startDateStr,
+        timeZone: 'Asia/Manila',
       },
       end: {
-        dateTime: endDate.toISOString(),
+        dateTime: endDateStr,
         timeZone: 'Asia/Manila',
       },
       ...(recurrenceRule ? { recurrence: [recurrenceRule] } : {}),
@@ -467,26 +612,88 @@ export const updateCalendarEvent = async (eventId, schedule, instructorEmail) =>
     }
     
     const days = getDaysArray(schedule);
-    const startDate = days.length
-      ? getNextOccurrenceForDays(days, timeParts[0].trim())
-      : scheduleToDate(schedule.day, timeParts[0].trim());
-    const endDate = new Date(startDate);
+    
+    // Get Philippines time components to calculate the correct day
+    const phTime = getPhilippinesTimeComponents();
+    
+    // Calculate next occurrence day in Philippines timezone
+    const startTimeParsed = parseTime(timeParts[0].trim());
+    if (!startTimeParsed) throw new Error('Invalid start time');
+    
+    let dayOfWeek = null;
+    if (days.length) {
+      // For multiple days, find the next occurrence
+      const dayNumbers = days.map(d => dayToDayOfWeek(d)).filter(d => d !== null);
+      if (!dayNumbers.length) throw new Error('Invalid days provided');
+      
+      let daysUntil = 7;
+      for (const d of dayNumbers) {
+        let diff = d - phTime.day;
+        if (diff < 0 || (diff === 0 && (phTime.hours * 60 + phTime.minutes) >= (startTimeParsed.hours * 60 + startTimeParsed.minutes))) {
+          diff += 7;
+        }
+        if (diff < daysUntil) {
+          daysUntil = diff;
+          dayOfWeek = d;
+        }
+      }
+    } else {
+      dayOfWeek = dayToDayOfWeek(schedule.day);
+      if (dayOfWeek === null) throw new Error(`Invalid day: ${schedule.day}`);
+    }
+    
+    // Format as ISO string in Philippines timezone
+    const formatDateTimeForPhilippines = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    };
+    
+    // For recurring events, use the first occurrence of the day in the academic year
+    // This ensures the event appears on ALL matching days (e.g., all Mondays) throughout the year
+    const targetDate = getFirstOccurrenceInAcademicYear(dayOfWeek, startTimeParsed.hours, startTimeParsed.minutes);
+    const startDateStr = formatDateTimeForPhilippines(targetDate);
+    
+    // Calculate end date
     const endTimeParsed = parseTime(timeParts[1].trim());
     if (!endTimeParsed) throw new Error('Invalid end time');
+    
+    const endDate = new Date(targetDate);
     endDate.setHours(endTimeParsed.hours, endTimeParsed.minutes, 0, 0);
     
     // If start time is after end time, add a day to end date
-    if (endDate <= startDate) {
+    if (endDate <= targetDate) {
       endDate.setDate(endDate.getDate() + 1);
     }
+    
+    const endDateStr = formatDateTimeForPhilippines(endDate);
     
     const rruleDays = (days.length ? days : [schedule.day])
       .map(d => dayToRRULEDay(d))
       .filter(Boolean)
       .join(',');
 
+    // Get academic year end date
+    const { end: academicYearEnd } = getAcademicYearDates();
+    
+    // Convert academic year end to UTC for RRULE UNTIL (Philippines is UTC+8, so subtract 8 hours)
+    const academicYearEndUTC = new Date(academicYearEnd.getTime() - (8 * 60 * 60 * 1000));
+    // Format for RRULE UNTIL: YYYYMMDDTHHMMSSZ (UTC)
+    const year = academicYearEndUTC.getUTCFullYear();
+    const month = String(academicYearEndUTC.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(academicYearEndUTC.getUTCDate()).padStart(2, '0');
+    const untilDate = `${year}${month}${day}T235959Z`;
+    
+    // Create recurrence rule: FREQ=WEEKLY means it repeats every week
+    // BYDAY specifies which days (e.g., MO for Monday, TU for Tuesday)
+    // UNTIL specifies when to stop (end of academic year)
+    // This ensures: Monday schedule → appears on ALL Mondays, Tuesday schedule → appears on ALL Tuesdays, etc.
     const recurrenceRule = rruleDays
-      ? `RRULE:FREQ=WEEKLY;BYDAY=${rruleDays}`
+      ? `RRULE:FREQ=WEEKLY;BYDAY=${rruleDays};UNTIL=${untilDate}`
       : null;
 
     const event = {
@@ -494,11 +701,11 @@ export const updateCalendarEvent = async (eventId, schedule, instructorEmail) =>
       description: `Course: ${schedule.course}\nYear: ${schedule.year}\nSection: ${schedule.section}\nRoom: ${schedule.room}`,
       location: schedule.room,
       start: {
-        dateTime: startDate.toISOString(),
+        dateTime: startDateStr,
         timeZone: 'Asia/Manila',
       },
       end: {
-        dateTime: endDate.toISOString(),
+        dateTime: endDateStr,
         timeZone: 'Asia/Manila',
       },
       ...(recurrenceRule ? { recurrence: [recurrenceRule] } : {}),

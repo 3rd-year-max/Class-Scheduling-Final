@@ -329,48 +329,36 @@ const ActivityLogs = () => {
   };
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#fafafa' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Activity Logs" />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
+        <div className="dashboard-content" style={{ marginTop: '140px', background: '#fafafa' }}>
           {/* Header Section */}
           <div style={{ 
             marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+            background: '#ffffff',
             padding: '20px 24px',
             borderRadius: '16px',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+            border: '1px solid rgba(15, 44, 99, 0.1)',
             position: 'relative',
-            overflow: 'hidden'
           }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px', position: 'relative', zIndex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
+                  background: '#0f2c63',
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 12px rgba(15, 44, 99, 0.2)'
                 }}>
-                  <FontAwesomeIcon icon={faClipboardList} style={{ fontSize: 28, color: '#fff' }} />
+                  <FontAwesomeIcon icon={faClipboardList} style={{ fontSize: 24, color: '#fff' }} />
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#ffffff', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>
+                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>
                     Activity Logs
                   </h2>
-                  <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>
+                  <p style={{ margin: '6px 0 0 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>
                     View all system activities and changes
                   </p>
                 </div>
@@ -384,22 +372,25 @@ const ActivityLogs = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 16px',
-                      background: 'rgba(255, 255, 255, 0.2)',
+                      background: '#dc2626',
                       color: '#fff',
-                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      border: 'none',
                       borderRadius: '8px',
                       fontSize: '14px',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 2px 8px rgba(220, 38, 38, 0.2)'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                      e.currentTarget.style.background = '#b91c1c';
                       e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.3)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.background = '#dc2626';
                       e.currentTarget.style.transform = '';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(220, 38, 38, 0.2)';
                     }}
                   >
                     <FontAwesomeIcon icon={faDownload} />
@@ -412,22 +403,25 @@ const ActivityLogs = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 16px',
-                      background: 'rgba(255, 255, 255, 0.2)',
+                      background: '#0e7490',
                       color: '#fff',
-                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      border: 'none',
                       borderRadius: '8px',
                       fontSize: '14px',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 2px 8px rgba(14, 116, 144, 0.2)'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                      e.currentTarget.style.background = '#155e75';
                       e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 116, 144, 0.3)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.background = '#0e7490';
                       e.currentTarget.style.transform = '';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(14, 116, 144, 0.2)';
                     }}
                   >
                     <FontAwesomeIcon icon={faDownload} />
@@ -478,20 +472,33 @@ const ActivityLogs = () => {
               </div>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: '8px',
-                  border: '2px solid #e5e7eb',
-                  background: showFilters ? '#0f2c63' : '#fff',
-                  color: showFilters ? '#fff' : '#374151',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s ease'
-                }}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: '2px solid #e5e7eb',
+                    background: showFilters ? '#0f2c63' : '#ffffff',
+                    color: showFilters ? '#fff' : '#374151',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: showFilters ? '0 2px 8px rgba(15, 44, 99, 0.2)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!showFilters) {
+                      e.currentTarget.style.background = '#f3f4f6';
+                      e.currentTarget.style.borderColor = '#d1d5db';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!showFilters) {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                    }
+                  }}
               >
                 <FontAwesomeIcon icon={faFilter} />
                 Filters
@@ -838,14 +845,25 @@ const ActivityLogs = () => {
                     padding: '10px 20px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: pagination.hasPrev 
-                      ? 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)'
-                      : '#e5e7eb',
+                    background: pagination.hasPrev ? '#0f2c63' : '#e5e7eb',
                     color: pagination.hasPrev ? 'white' : '#9ca3af',
                     fontWeight: '600',
                     cursor: pagination.hasPrev ? 'pointer' : 'not-allowed',
                     fontSize: '14px',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: pagination.hasPrev ? '0 2px 8px rgba(15, 44, 99, 0.2)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (pagination.hasPrev) {
+                      e.currentTarget.style.background = '#1e3a72';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (pagination.hasPrev) {
+                      e.currentTarget.style.background = '#0f2c63';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 44, 99, 0.2)';
+                    }
                   }}
                 >
                   Previous
@@ -862,14 +880,25 @@ const ActivityLogs = () => {
                     padding: '10px 20px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: pagination.hasNext 
-                      ? 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)'
-                      : '#e5e7eb',
+                    background: pagination.hasNext ? '#0f2c63' : '#e5e7eb',
                     color: pagination.hasNext ? 'white' : '#9ca3af',
                     fontWeight: '600',
                     cursor: pagination.hasNext ? 'pointer' : 'not-allowed',
                     fontSize: '14px',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: pagination.hasNext ? '0 2px 8px rgba(15, 44, 99, 0.2)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (pagination.hasNext) {
+                      e.currentTarget.style.background = '#1e3a72';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (pagination.hasNext) {
+                      e.currentTarget.style.background = '#0f2c63';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 44, 99, 0.2)';
+                    }
                   }}
                 >
                   Next

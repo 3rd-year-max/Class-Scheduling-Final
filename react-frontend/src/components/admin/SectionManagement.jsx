@@ -202,64 +202,17 @@ const SectionManagement = () => {
   const currentCourse = courses.find(c => c.id === selectedCourse);
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: '#fafafa' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Section Management" />
-        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
-          {/* Enhanced Welcome Section */}
-          <div style={{
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            color: '#ffffff',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}>
-                <FontAwesomeIcon icon={faUsers} style={{ fontSize: 28, color: '#fff' }} />
-              </div>
-              <div>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
-                }}>
-                  Section Management
-                </h2>
-                <p style={{
-                  margin: '6px 0 0 0',
-                  fontSize: '14px',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: '500',
-                }}>
-                  Select a course and year level to create, manage, and organize student sections
-                </p>
-              </div>
-            </div>
-          </div>
-
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>
+            Section Management
+          </h2>
+          <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+            Select a course and year level to create, manage, and organize student sections
+          </p>
           {/* Enhanced Course Selection */}
           <div style={{
             background: '#ffffff',
@@ -299,7 +252,7 @@ const SectionManagement = () => {
                   }}
                   style={{
                     padding: '22px',
-                    background: selectedCourse === course.id ? course.gradient : '#ffffff',
+                    background: selectedCourse === course.id ? course.color : '#ffffff',
                     color: selectedCourse === course.id ? 'white' : '#374151',
                     border: selectedCourse === course.id ? 'none' : '2px solid #e5e7eb',
                     borderRadius: '18px',
@@ -313,7 +266,7 @@ const SectionManagement = () => {
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     textAlign: 'left',
                     boxShadow: selectedCourse === course.id 
-                      ? `0 8px 24px ${course.color}30` 
+                      ? `0 4px 12px ${course.color}30` 
                       : '0 2px 8px rgba(0, 0, 0, 0.05)',
                     position: 'relative',
                     overflow: 'hidden',
@@ -321,8 +274,8 @@ const SectionManagement = () => {
                   onMouseOver={(e) => {
                     if (selectedCourse !== course.id) {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.12)';
-                      e.currentTarget.style.borderColor = '#d1d5db';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.borderColor = course.color;
                     }
                   }}
                   onMouseOut={(e) => {
@@ -333,18 +286,6 @@ const SectionManagement = () => {
                     }
                   }}
                 >
-                  {selectedCourse === course.id && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '-20px',
-                      right: '-20px',
-                      width: '80px',
-                      height: '80px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '50%',
-                      filter: 'blur(20px)',
-                    }} />
-                  )}
                   <div style={{
                     width: '48px',
                     height: '48px',
@@ -356,6 +297,7 @@ const SectionManagement = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '24px',
+                    color: selectedCourse === course.id ? 'white' : 'white',
                     boxShadow: selectedCourse === course.id 
                       ? '0 4px 12px rgba(0, 0, 0, 0.1)' 
                       : `0 4px 12px ${course.color}20`,
@@ -425,7 +367,7 @@ const SectionManagement = () => {
                     onClick={() => setSelectedYear(year.id)}
                     style={{
                       padding: '20px',
-                      background: selectedYear === year.id ? currentCourse.gradient : '#f9fafb',
+                      background: selectedYear === year.id ? currentCourse.color : '#ffffff',
                       color: selectedYear === year.id ? 'white' : '#374151',
                       border: selectedYear === year.id ? 'none' : '2px solid #e5e7eb',
                       borderRadius: '14px',
@@ -435,7 +377,7 @@ const SectionManagement = () => {
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       textAlign: 'center',
                       boxShadow: selectedYear === year.id
-                        ? `0 8px 24px ${currentCourse?.color || '#f97316'}30`
+                        ? `0 4px 12px ${currentCourse?.color || '#f97316'}30`
                         : '0 2px 8px rgba(0, 0, 0, 0.05)',
                       position: 'relative',
                       overflow: 'hidden',
@@ -444,29 +386,17 @@ const SectionManagement = () => {
                       if (selectedYear !== year.id) {
                         e.currentTarget.style.transform = 'translateY(-4px)';
                         e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.1)';
-                        e.currentTarget.style.background = '#f3f4f6';
+                        e.currentTarget.style.borderColor = currentCourse?.color || '#f97316';
                       }
                     }}
                     onMouseOut={(e) => {
                       if (selectedYear !== year.id) {
                         e.currentTarget.style.transform = 'translateY(0)';
                         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
-                        e.currentTarget.style.background = '#f9fafb';
+                        e.currentTarget.style.borderColor = '#e5e7eb';
                       }
                     }}
                   >
-                    {selectedYear === year.id && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '-20px',
-                        right: '-20px',
-                        width: '70px',
-                        height: '70px',
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        borderRadius: '50%',
-                        filter: 'blur(20px)',
-                      }} />
-                    )}
                     <div style={{
                       fontSize: '28px',
                       fontWeight: '800',
@@ -536,7 +466,7 @@ const SectionManagement = () => {
                     onClick={() => setShowAddSectionPopup(true)}
                     style={{
                       padding: '12px 24px',
-                      background: currentCourse.gradient,
+                      background: currentCourse.color,
                       color: 'white',
                       border: 'none',
                       borderRadius: '12px',
@@ -547,15 +477,17 @@ const SectionManagement = () => {
                       alignItems: 'center',
                       gap: '8px',
                       transition: 'all 0.3s ease',
-                      boxShadow: `0 4px 12px ${currentCourse?.color || '#f97316'}30`,
+                      boxShadow: `0 4px 12px ${currentCourse?.color || '#f97316'}20`,
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = `0 6px 16px ${currentCourse?.color || '#f97316'}40`;
+                      e.currentTarget.style.background = currentCourse.color === '#0f2c63' ? '#1e3a72' : '#ea580c';
+                      e.currentTarget.style.boxShadow = `0 6px 16px ${currentCourse?.color || '#f97316'}30`;
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = `0 4px 12px ${currentCourse?.color || '#f97316'}30`;
+                      e.currentTarget.style.background = currentCourse.color;
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${currentCourse?.color || '#f97316'}20`;
                     }}
                   >
                     <FontAwesomeIcon icon={faPlus} />
@@ -606,7 +538,7 @@ const SectionManagement = () => {
               ) : error ? (
                 <div style={{
                   padding: '20px',
-                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                  background: '#fef2f2',
                   border: '2px solid #fecaca',
                   borderRadius: '14px',
                   display: 'flex',
@@ -659,7 +591,7 @@ const SectionManagement = () => {
                       key={section._id}
                       style={{
                         padding: '18px',
-                        background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                        background: '#ffffff',
                         border: '2px solid #e5e7eb',
                         borderRadius: '16px',
                         display: 'flex',
@@ -668,6 +600,7 @@ const SectionManagement = () => {
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         position: 'relative',
                         overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
                       }}
                       onMouseOver={(e) => {
                         e.currentTarget.style.background = '#ffffff';
@@ -676,9 +609,9 @@ const SectionManagement = () => {
                         e.currentTarget.style.transform = 'translateY(-4px)';
                       }}
                       onMouseOut={(e) => {
-                        e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)';
+                        e.currentTarget.style.background = '#ffffff';
                         e.currentTarget.style.borderColor = '#e5e7eb';
-                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                         e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
@@ -703,23 +636,25 @@ const SectionManagement = () => {
                         onClick={() => handleArchiveSection(section)}
                         style={{
                           padding: '8px 12px',
-                          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                          background: '#fef3c7',
                           color: '#b45309',
-                          border: 'none',
+                          border: '2px solid #fde68a',
                           borderRadius: '8px',
                           cursor: 'pointer',
                           transition: 'all 0.3s ease',
-                          boxShadow: '0 2px 8px rgba(180, 83, 9, 0.15)',
+                          boxShadow: '0 2px 8px rgba(180, 83, 9, 0.1)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, #fde68a 0%, #fcd34d 100%)';
+                          e.currentTarget.style.background = '#fde68a';
+                          e.currentTarget.style.borderColor = '#fcd34d';
                           e.currentTarget.style.transform = 'scale(1.05)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(180, 83, 9, 0.25)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(180, 83, 9, 0.2)';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)';
+                          e.currentTarget.style.background = '#fef3c7';
+                          e.currentTarget.style.borderColor = '#fde68a';
                           e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(180, 83, 9, 0.15)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(180, 83, 9, 0.1)';
                         }}
                       >
                         <FontAwesomeIcon icon={faArchive} />
@@ -745,14 +680,15 @@ const SectionManagement = () => {
                 width: '64px',
                 height: '64px',
                 borderRadius: '16px',
-                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                background: '#fef3c7',
+                border: '2px solid #fde68a',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '32px',
                 color: '#b45309',
                 margin: '0 auto 20px',
-                boxShadow: '0 8px 24px rgba(180, 83, 9, 0.15)',
+                boxShadow: '0 4px 12px rgba(180, 83, 9, 0.1)',
               }}>
                 <FontAwesomeIcon icon={faUsers} />
               </div>
@@ -878,8 +814,9 @@ const SectionManagement = () => {
                             padding: '18px',
                             borderRadius: '14px',
                             border: '2px solid #e5e7eb',
-                            background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                            background: '#ffffff',
                             transition: 'all 0.3s ease',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
                           }}
                           onMouseOver={(e) => {
                             e.currentTarget.style.borderColor = '#d1d5db';
@@ -887,7 +824,7 @@ const SectionManagement = () => {
                           }}
                           onMouseOut={(e) => {
                             e.currentTarget.style.borderColor = '#e5e7eb';
-                            e.currentTarget.style.boxShadow = 'none';
+                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                           }}
                         >
                           <div>
@@ -903,7 +840,7 @@ const SectionManagement = () => {
                               onClick={() => handleRestoreSection(s)}
                               style={{
                                 padding: '8px 16px',
-                                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                background: '#059669',
                                 color: '#fff',
                                 border: 'none',
                                 borderRadius: '8px',
@@ -1125,7 +1062,7 @@ const SectionManagement = () => {
                         padding: '12px 24px',
                         background: addingSection || !newSectionName.trim()
                           ? '#d1d5db'
-                          : currentCourse.gradient,
+                          : currentCourse.color,
                         color: 'white',
                         border: 'none',
                         borderRadius: '10px',
@@ -1140,14 +1077,16 @@ const SectionManagement = () => {
                       onMouseEnter={(e) => {
                         if (!addingSection && newSectionName.trim()) {
                           e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = `0 6px 16px ${currentCourse?.color || '#f97316'}40`;
+                          e.currentTarget.style.background = currentCourse.color === '#0f2c63' ? '#1e3a72' : '#ea580c';
+                          e.currentTarget.style.boxShadow = `0 6px 16px ${currentCourse?.color || '#f97316'}30`;
                         }
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.background = currentCourse.color;
                         e.currentTarget.style.boxShadow = addingSection || !newSectionName.trim()
                           ? 'none'
-                          : `0 4px 12px ${currentCourse?.color || '#f97316'}30`;
+                          : `0 4px 12px ${currentCourse?.color || '#f97316'}20`;
                       }}
                     >
                       {addingSection ? 'Adding...' : 'Add Section'}

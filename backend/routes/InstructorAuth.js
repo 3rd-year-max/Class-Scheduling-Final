@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import Instructor from '../models/Instructor.js';
+import Schedule from '../models/Schedule.js';
 import Alert from '../models/Alert.js';
 import axios from 'axios';
 import { verifyRecaptcha } from '../utils/recaptcha.js';
@@ -8,6 +9,7 @@ import validator from 'validator';
 import rateLimit from 'express-rate-limit';
 import { logActivity, getUserEmailFromRequest } from '../utils/activityLogger.js';
 import jwt from 'jsonwebtoken';
+import { createCalendarEvent, updateCalendarEvent, isGoogleCalendarConfigured } from '../services/googleCalendarService.js';
 
 // Rate limiter for login attempts. Skip during development to avoid blocking local testing.
 const loginLimiter = rateLimit({
@@ -18,6 +20,124 @@ const loginLimiter = rateLimit({
 });
 
 const router = express.Router();
+
+/**
+ * Auto-sync unsynced schedules to Google Calendar for an instructor
+ * This function runs asynchronously and doesn't block the login response
+ */
+const syncUnsyncedSchedulesToCalendar = async (instructorEmail) => {
+  try {
+    // Validate email
+    if (!instructorEmail || typeof instructorEmail !== 'string') {
+      console.log('⚠️ Invalid instructor email, skipping auto-sync');
+      return;
+    }
+
+    const normalizedEmail = instructorEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      console.log('⚠️ Empty instructor email, skipping auto-sync');
+      return;
+    }
+
+    // Check if Google Calendar is configured
+    if (!isGoogleCalendarConfigured()) {
+      console.log('⚠️ Google Calendar not configured, skipping auto-sync');
+      return;
+    }
+
+    // Find instructor to get their full name for matching
+    const instructor = await Instructor.findOne({ email: normalizedEmail });
+    if (!instructor) {
+      console.log(`⚠️ Instructor not found for ${normalizedEmail}, skipping auto-sync`);
+      return;
+    }
+
+    const instructorFullName = `${instructor.firstname} ${instructor.lastname}`.trim();
+
+    // Find ALL schedules for this instructor (including already synced ones)
+    // Match by instructorEmail OR by instructor name (for schedules created before email was added)
+    const allSchedules = await Schedule.find({
+      $and: [
+        { archived: false },
+        {
+          $or: [
+            { instructorEmail: normalizedEmail },
+            // Also match by instructor name if email is missing (for backward compatibility)
+            { instructor: instructorFullName, instructorEmail: { $exists: false } },
+            { instructor: instructorFullName, instructorEmail: null },
+            { instructor: instructorFullName, instructorEmail: '' }
+          ]
+        }
+      ]
+    });
+
+    if (allSchedules.length === 0) {
+      console.log(`ℹ️ No schedules found for ${normalizedEmail}`);
+      return;
+    }
+
+    console.log(`🔄 Found ${allSchedules.length} schedule(s) for ${normalizedEmail}. Syncing all to Google Calendar...`);
+
+    let syncedCount = 0;
+    let updatedCount = 0;
+    let failedCount = 0;
+    let skippedCount = 0;
+
+    // Sync each schedule (create new or update existing)
+    for (const schedule of allSchedules) {
+      try {
+        // Ensure instructorEmail is set before syncing
+        if (!schedule.instructorEmail || schedule.instructorEmail.toLowerCase() !== normalizedEmail) {
+          schedule.instructorEmail = normalizedEmail;
+          await schedule.save();
+          console.log(`📝 Updated instructorEmail for schedule ${schedule._id} (${schedule.subject})`);
+        }
+
+        // If schedule already has a googleCalendarEventId, update the existing event
+        // Otherwise, create a new event
+        if (schedule.googleCalendarEventId) {
+          const updatedEventId = await updateCalendarEvent(schedule.googleCalendarEventId, schedule, normalizedEmail);
+          if (updatedEventId) {
+            updatedCount++;
+            console.log(`🔄 Updated existing Google Calendar event for schedule ${schedule._id} (${schedule.subject}) - ${schedule.day} ${schedule.time}: ${updatedEventId}`);
+          } else {
+            // Event might have been deleted, create a new one
+            console.log(`⚠️ Existing event not found, creating new event for schedule ${schedule._id} (${schedule.subject})`);
+            const newEventId = await createCalendarEvent(schedule, normalizedEmail);
+            if (newEventId) {
+              schedule.googleCalendarEventId = newEventId;
+              await schedule.save();
+              syncedCount++;
+              console.log(`✅ Created new Google Calendar event for schedule ${schedule._id} (${schedule.subject}): ${newEventId}`);
+            } else {
+              failedCount++;
+              console.warn(`⚠️ Failed to create new event for schedule ${schedule._id} (${schedule.subject}) - calendar may not be shared`);
+            }
+          }
+        } else {
+          // Create new event
+          const eventId = await createCalendarEvent(schedule, normalizedEmail);
+          if (eventId) {
+            schedule.googleCalendarEventId = eventId;
+            await schedule.save();
+            syncedCount++;
+            console.log(`✅ Created Google Calendar event for schedule ${schedule._id} (${schedule.subject}) - ${schedule.day} ${schedule.time}: ${eventId}`);
+          } else {
+            failedCount++;
+            console.warn(`⚠️ Failed to sync schedule ${schedule._id} (${schedule.subject}) - calendar may not be shared`);
+          }
+        }
+      } catch (error) {
+        failedCount++;
+        console.error(`❌ Error syncing schedule ${schedule._id} (${schedule.subject}):`, error.message);
+      }
+    }
+
+    console.log(`✅ Auto-sync completed for ${normalizedEmail}: ${syncedCount} created, ${updatedCount} updated, ${failedCount} failed`);
+  } catch (error) {
+    console.error(`❌ Error during auto-sync for ${instructorEmail}:`, error.message);
+  }
+};
 
 // Instructor Signup - Complete Registration
 router.post('/signup', async (req, res) => {
@@ -233,6 +353,12 @@ router.post('/login', loginLimiter, async (req, res) => {
       userEmail: instructor.email,
       link: '/instructor/dashboard',
       io: req.io
+    });
+
+    // ✅ AUTO-SYNC UNSYNCED SCHEDULES TO GOOGLE CALENDAR (non-blocking)
+    // Run this asynchronously so it doesn't delay the login response
+    syncUnsyncedSchedulesToCalendar(instructor.email).catch(err => {
+      console.error('Error in background schedule sync:', err);
     });
   
     // Issue JWT token for the instructor

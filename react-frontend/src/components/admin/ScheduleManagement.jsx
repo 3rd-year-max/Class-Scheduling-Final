@@ -5,7 +5,6 @@ import {
   faGraduationCap,
   faCode,
   faChevronRight,
-  faCalendarCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import Sidebar from '../common/Sidebar.jsx';
 import Header from '../common/Header.jsx';
@@ -49,64 +48,17 @@ const ScheduleManagement = () => {
   };
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: '#fafafa' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Schedule Management" />
-        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
-          {/* Enhanced Welcome Section */}
-          <div style={{
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            color: '#ffffff',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}>
-                <FontAwesomeIcon icon={faCalendarCheck} style={{ fontSize: 28, color: '#fff' }} />
-              </div>
-              <div>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
-                }}>
-                  Schedule Management
-                </h2>
-                <p style={{
-                  margin: '6px 0 0 0',
-                  fontSize: '14px',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: '500',
-                }}>
-                  Select a course and year level to manage class schedules, view sections, and organize academic timetables
-                </p>
-              </div>
-            </div>
-          </div>
-
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>
+            Schedule Management
+          </h2>
+          <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+            Select a course and year level to manage class schedules, view sections, and organize academic timetables
+          </p>
           {/* Enhanced Course Cards */}
           {courses.map((course) => (
             <div
@@ -201,48 +153,36 @@ const ScheduleManagement = () => {
                       alignItems: 'flex-start',
                       justifyContent: 'space-between',
                       padding: '24px',
-                      background: course.gradient,
-                      color: 'white',
-                      border: 'none',
+                      background: 'white',
+                      color: course.color,
+                      border: '2px solid #e2e8f0',
                       borderRadius: '18px',
                       cursor: 'pointer',
                       fontSize: '16px',
                       fontWeight: '700',
-                      boxShadow: `0 8px 24px ${course.color}25`,
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       minHeight: '120px',
                       position: 'relative',
                       overflow: 'hidden',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                      e.currentTarget.style.boxShadow = `0 12px 32px ${course.color}35`;
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.borderColor = course.color;
+                      e.currentTarget.style.boxShadow = `0 8px 20px ${course.color}20`;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${course.color}25`;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                     }}
                   >
-                    {/* Decorative background element */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '-20px',
-                      right: '-20px',
-                      width: '100px',
-                      height: '100px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '50%',
-                      filter: 'blur(20px)',
-                    }} />
-
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       width: '100%',
                       marginBottom: '12px',
-                      position: 'relative',
-                      zIndex: 1,
                     }}>
                       <div
                         style={{
@@ -250,13 +190,13 @@ const ScheduleManagement = () => {
                           fontWeight: '800',
                           width: '56px',
                           height: '56px',
-                          background: 'rgba(255, 255, 255, 0.25)',
-                          backdropFilter: 'blur(10px)',
+                          background: course.lightColor,
                           borderRadius: '14px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                          color: course.color,
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
                         }}
                       >
                         {year.year}
@@ -265,7 +205,8 @@ const ScheduleManagement = () => {
                         icon={faChevronRight}
                         style={{
                           fontSize: 18,
-                          opacity: 0.9,
+                          color: course.color,
+                          opacity: 0.6,
                           transition: 'transform 0.3s ease',
                         }}
                         onMouseEnter={(e) => {
@@ -277,18 +218,18 @@ const ScheduleManagement = () => {
                       />
                     </div>
 
-                    <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+                    <div style={{ width: '100%' }}>
                       <div style={{
                         fontSize: '18px',
                         fontWeight: '700',
                         marginBottom: '4px',
-                        textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                        color: '#1e293b',
                       }}>
                         {year.label}
                       </div>
                       <div style={{
                         fontSize: '12px',
-                        opacity: 0.9,
+                        color: '#64748b',
                         fontWeight: '500',
                       }}>
                         {year.description}

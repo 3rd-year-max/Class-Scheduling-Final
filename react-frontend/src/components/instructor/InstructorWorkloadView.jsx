@@ -79,7 +79,7 @@ const InstructorWorkloadView = () => {
     return (
       <div className="workload-loading-state" style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+        background: '#fafafa',
       }}>
         <div style={{ textAlign: 'center', color: '#fff' }}>
           <div className="spinner" style={{ margin: '0 auto 24px', width: 48, height: 48, border: '6px solid #fff', borderTop: '6px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -93,7 +93,7 @@ const InstructorWorkloadView = () => {
     return (
       <div className="workload-error-state" style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+        background: '#fafafa',
       }}>
         <div style={{ textAlign: 'center', color: '#fff' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
@@ -107,7 +107,7 @@ const InstructorWorkloadView = () => {
     return (
       <div className="workload-no-data" style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+        background: '#fafafa',
       }}>
         <div style={{ textAlign: 'center', color: '#fff' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
@@ -152,12 +152,12 @@ const InstructorWorkloadView = () => {
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem' }}>
         {/* Header Section */}
         <div style={{
-          background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+          background: '#ffffff',
           borderRadius: '16px',
           padding: '20px 24px',
           marginBottom: '24px',
-          boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          border: '1px solid rgba(226, 232, 240, 0.8)',
           position: 'relative',
           overflow: 'hidden'
         }}>
@@ -223,7 +223,7 @@ const InstructorWorkloadView = () => {
           </div>
           <p style={{ 
             margin: 0, 
-            color: 'rgba(255,255,255,0.95)', 
+            color: '#6b7280', 
             fontSize: '14px',
             fontWeight: '500'
           }}>
@@ -232,7 +232,7 @@ const InstructorWorkloadView = () => {
         </div>
 
         <div ref={cardRef} style={{
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              background: '#ffffff',
               borderRadius: 16,
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
               backdropFilter: 'blur(10px)',
@@ -279,7 +279,7 @@ const InstructorWorkloadView = () => {
                   disabled={downloading}
                   style={{
                     marginLeft: 'auto',
-                    background: downloading ? '#94a3b8' : 'linear-gradient(135deg, #2563eb 0%, #10b981 100%)',
+                    background: downloading ? '#94a3b8' : '#2563eb',
                     color: '#fff',
                     border: 'none',
                     borderRadius: 10,
@@ -314,7 +314,7 @@ const InstructorWorkloadView = () => {
               </div>
               <section className="workload-summary" style={{ display: 'flex', gap: 18, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
                 <div className="summary-card" style={{
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                  background: '#eff6ff',
                   borderRadius: 16,
                   boxShadow: '0 4px 16px rgba(37,99,235,0.15)',
                   border: '2px solid #bfdbfe',
@@ -339,7 +339,7 @@ const InstructorWorkloadView = () => {
                   <p style={{ fontSize: '2.1rem', fontWeight: 700, color: '#2563eb', margin: 0 }}>{weeklySummary.totalClasses}</p>
                 </div>
                 <div className="summary-card" style={{
-                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                  background: '#f0fdf4',
                   borderRadius: 16,
                   boxShadow: '0 4px 16px rgba(16,185,129,0.15)',
                   border: '2px solid #bbf7d0',
@@ -364,7 +364,7 @@ const InstructorWorkloadView = () => {
                   <p style={{ fontSize: '2.1rem', fontWeight: 700, color: '#10b981', margin: 0 }}>{weeklySummary.totalHours} hrs</p>
                 </div>
                 <div className="summary-card" style={{
-                  background: 'linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)',
+                  background: '#fff7ed',
                   borderRadius: 16,
                   boxShadow: '0 4px 16px rgba(249,115,22,0.15)',
                   border: '2px solid #fdba74',
@@ -446,7 +446,7 @@ const InstructorWorkloadView = () => {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontSize: 15 }}>
                     <thead>
-                      <tr style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)', color: 'white' }}>
+                      <tr style={{ background: '#2563eb', color: 'white' }}>
                         <th style={{ padding: '14px', textAlign: 'left', fontWeight: '600' }}>Day</th>
                         <th style={{ padding: '14px', textAlign: 'left', fontWeight: '600' }}>Classes</th>
                         <th style={{ padding: '14px', textAlign: 'left', fontWeight: '600' }}>Hours</th>
@@ -478,7 +478,7 @@ const InstructorWorkloadView = () => {
                 fontStyle: 'italic', 
                 fontSize: 15, 
                 padding: '20px',
-                background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                background: '#f8fafc',
                 borderRadius: 12,
                 border: '1px solid #e2e8f0'
               }}>

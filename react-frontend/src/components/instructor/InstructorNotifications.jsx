@@ -247,86 +247,45 @@ const InstructorNotifications = () => {
   return (
     <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
       <InstructorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Welcome Section */}
-          <div className="welcome-section" style={{ 
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(12px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                border: '1px solid rgba(255, 255, 255, 0.3)'
-              }}>
-                <FontAwesomeIcon icon={faBell} style={{ fontSize: 24, color: '#fff' }} />
-              </div>
-              <h2 style={{ 
-                margin: 0, 
-                color: '#ffffff', 
-                fontSize: '24px', 
-                fontWeight: '800',
-                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                letterSpacing: '-0.3px'
-              }}>
-                Notifications
-              </h2>
+        <div className="dashboard-content" style={{ marginTop: '140px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '800', color: '#1f2937' }}>
+            Notifications
+          </h2>
+          <p style={{ margin: '0 0 16px 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>
+            {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
+          </p>
+          {unreadCount > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <button
+                onClick={markAllAsRead}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  background: '#0f2c63',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = ''}
+              >
+                <FontAwesomeIcon icon={faCheckDouble} />
+                Mark All as Read
+              </button>
             </div>
-            <p style={{ 
-              margin: 0, 
-              color: 'rgba(255,255,255,0.95)', 
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
-            </p>
-            <div style={{ marginTop: '16px' }}>
-              
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '12px 20px',
-                    background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    transition: 'transform 0.2s ease'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = ''}
-                >
-                  <FontAwesomeIcon icon={faCheckDouble} />
-                  Mark All as Read
-                </button>
-              )}
-            </div>
-          </div>
+          )}
 
           {/* Filters */}
           <div style={{
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            background: '#ffffff',
             padding: '18px 20px',
             borderRadius: '12px',
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)',
@@ -362,7 +321,7 @@ const InstructorNotifications = () => {
 
           {/* Notifications List */}
           <div style={{
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            background: '#ffffff',
             padding: '24px',
             borderRadius: '12px',
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)',
@@ -399,8 +358,8 @@ const InstructorNotifications = () => {
                       border: '1px solid',
                       borderColor: notification.read ? 'rgba(15, 44, 99, 0.1)' : 'rgba(15, 44, 99, 0.2)',
                       background: notification.read 
-                        ? 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)' 
-                        : 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                        ? '#ffffff' 
+                        : '#f0f9ff',
                       cursor: notification.read ? 'default' : 'pointer',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       display: 'flex',
@@ -412,14 +371,14 @@ const InstructorNotifications = () => {
                     }}
                       onMouseEnter={(e) => {
                         if (!notification.read) {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)';
+                          e.currentTarget.style.background = '#e0f2fe';
                           e.currentTarget.style.transform = 'translateX(4px) translateY(-2px)';
                           e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 44, 99, 0.2)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!notification.read) {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)';
+                          e.currentTarget.style.background = '#f0f9ff';
                           e.currentTarget.style.transform = '';
                           e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.15)';
                         }
@@ -430,8 +389,8 @@ const InstructorNotifications = () => {
                         height: '40px',
                         borderRadius: '50%',
                         background: notification.read 
-                          ? 'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)'
-                          : 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)',
+                          ? '#9ca3af'
+                          : '#0f2c63',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -505,7 +464,7 @@ const InstructorNotifications = () => {
                         borderRadius: '8px',
                         border: 'none',
                         background: pagination.hasPrev 
-                          ? 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)'
+                          ? '#0f2c63'
                           : '#e5e7eb',
                         color: pagination.hasPrev ? 'white' : '#9ca3af',
                         fontWeight: '600',
@@ -528,7 +487,7 @@ const InstructorNotifications = () => {
                         borderRadius: '8px',
                         border: 'none',
                         background: pagination.hasNext 
-                          ? 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)'
+                          ? '#0f2c63'
                           : '#e5e7eb',
                         color: pagination.hasNext ? 'white' : '#9ca3af',
                         fontWeight: '600',

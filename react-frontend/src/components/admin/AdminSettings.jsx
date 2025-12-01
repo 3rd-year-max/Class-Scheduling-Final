@@ -25,7 +25,7 @@ const AdminSettings = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)' }}>
+    <div style={{ display: 'flex', height: '100vh', background: '#f5f5f5' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <main
@@ -35,187 +35,205 @@ const AdminSettings = () => {
           flexDirection: 'column',
           overflowY: 'auto',
           marginLeft: 0,
+          background: '#fafafa'
         }}
       >
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
-        <div style={{ padding: '24px', marginTop: '100px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* Page Header */}
-          <div style={{ marginBottom: '36px', textAlign: 'center', maxWidth: '700px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '14px' }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '14px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(12px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                transition: 'all 0.3s ease'
-              }}>
-                <FontAwesomeIcon
-                  icon={faGear}
-                  style={{ fontSize: '32px', color: '#fff' }}
-                />
-              </div>
-              <h1 style={{ margin: 0, color: '#ffffff', fontSize: '28px', fontWeight: '800', textShadow: '0 4px 16px rgba(0,0,0,0.4)', letterSpacing: '-0.5px' }}>
-                System Settings
-              </h1>
-            </div>
-            <p style={{ margin: '0', color: 'rgba(255,255,255,0.95)', fontSize: '14px', marginTop: '10px', lineHeight: '1.6', fontWeight: '500' }}>
+        <div style={{ 
+          padding: '32px 24px', 
+          marginTop: '100px', 
+          flex: 1, 
+          background: '#fafafa',
+          maxWidth: '1200px',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          width: '100%'
+        }}>
+          {/* Header Section */}
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '40px',
+            paddingBottom: '24px',
+            borderBottom: '2px solid rgba(15, 44, 99, 0.08)'
+          }}>
+            <h1 style={{ 
+              margin: '0 0 10px 0', 
+              fontSize: '30px', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.6px', 
+              background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)', 
+              WebkitBackgroundClip: 'text', 
+              WebkitTextFillColor: 'transparent', 
+              backgroundClip: 'text' 
+            }}>
+              System Settings
+            </h1>
+            <p style={{ 
+              margin: '0', 
+              color: '#64748b', 
+              fontSize: '15px', 
+              lineHeight: '1.6', 
+              fontWeight: '400', 
+              maxWidth: '600px',
+              marginLeft: 'auto',
+              marginRight: 'auto'
+            }}>
               Manage system configuration, monitor activities, and maintain system integrity
             </p>
           </div>
 
-          {/* Settings Card - Enhanced Single Card */}
-          <div
-            style={{
-              maxWidth: '520px',
-              width: '100%',
-              margin: '0 auto',
-            }}
-          >
+          {/* Main Content Layout - Enhanced */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            maxWidth: '800px',
+            margin: '0 auto',
+            alignItems: 'stretch',
+          }}>
+            {/* Settings Card - Enhanced Placement */}
             {settingsOptions.map((option) => (
-              <div
-                key={option.id}
-                onClick={option.action}
-                style={{
-                  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative',
-                  border: '1px solid rgba(15, 44, 99, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-6px) scale(1.01)';
-                  e.currentTarget.style.boxShadow = '0 30px 80px rgba(15, 44, 99, 0.25), 0 0 0 1px rgba(15, 44, 99, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)';
-                }}
-              >
-                {/* Top Color Bar - Enhanced */}
+                <div
+                  key={option.id}
+                  onClick={option.action}
+                  style={{
+                    background: '#ffffff',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 4px 20px rgba(15, 44, 99, 0.1), 0 0 0 1px rgba(15, 44, 99, 0.08)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    border: '1px solid rgba(15, 44, 99, 0.1)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(15, 44, 99, 0.15), 0 0 0 1px rgba(15, 44, 99, 0.12)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(15, 44, 99, 0.1), 0 0 0 1px rgba(15, 44, 99, 0.08)';
+                  }}
+                >
+                {/* Compact Top Section with Gradient */}
                 <div
                   style={{
-                    height: '5px',
-                    background: option.bgGradient,
+                    height: '80px',
+                    background: `linear-gradient(135deg, ${option.color} 0%, #1e40af 100%)`,
                     position: 'relative',
                     overflow: 'hidden',
                   }}
                 >
+                  {/* Subtle Decorative Pattern */}
                   <div style={{
                     position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
-                    animation: 'shimmer 3s infinite',
+                    top: '-30%',
+                    right: '-15%',
+                    width: '150px',
+                    height: '150px',
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    filter: 'blur(30px)',
                   }} />
-                </div>
-
-                {/* Content - Enhanced */}
-                <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px', alignItems: 'center', textAlign: 'center' }}>
-                  {/* Icon - Enhanced */}
+                  
+                  {/* Icon Container - Compact Floating */}
                   <div
                     style={{
-                      width: '72px',
-                      height: '72px',
-                      borderRadius: '16px',
-                      background: `linear-gradient(135deg, ${option.color}15 0%, ${option.color}25 100%)`,
+                      position: 'absolute',
+                      bottom: '-25px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '14px',
+                      background: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '36px',
+                      fontSize: '26px',
                       color: option.color,
-                      boxShadow: `0 8px 24px ${option.color}25`,
+                      boxShadow: '0 6px 20px rgba(15, 44, 99, 0.2), 0 2px 8px rgba(15, 44, 99, 0.1)',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      border: `2px solid ${option.color}20`,
+                      border: '3px solid #ffffff',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'rotate(5deg) scale(1.08)';
-                      e.currentTarget.style.boxShadow = `0 12px 32px ${option.color}35`;
+                      e.currentTarget.style.transform = 'translateX(-50%) rotate(5deg) scale(1.08)';
+                      e.currentTarget.style.boxShadow = '0 12px 32px rgba(15, 44, 99, 0.25), 0 4px 12px rgba(15, 44, 99, 0.15)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${option.color}25`;
+                      e.currentTarget.style.transform = 'translateX(-50%) rotate(0deg) scale(1)';
+                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(15, 44, 99, 0.2), 0 2px 8px rgba(15, 44, 99, 0.1)';
                     }}
                   >
                     <FontAwesomeIcon icon={option.icon} />
                   </div>
+                </div>
 
-                  {/* Title - Enhanced */}
+                {/* Content Section - Compact */}
+                <div style={{ padding: '44px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center' }}>
+                  {/* Title */}
                   <div>
                     <h3
                       style={{
                         margin: '0 0 10px 0',
-                        color: '#0f172a',
+                        color: '#1e293b',
                         fontSize: '20px',
                         fontWeight: '800',
-                        letterSpacing: '-0.5px',
-                        background: `linear-gradient(135deg, ${option.color} 0%, ${option.color}dd 100%)`,
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
+                        letterSpacing: '-0.4px',
                       }}
                     >
                       {option.title}
                     </h3>
 
-                    {/* Description - Enhanced */}
+                    {/* Description */}
                     <p
                       style={{
                         margin: '0',
-                        color: '#64748b',
-                        fontSize: '13px',
+                        color: '#475569',
+                        fontSize: '14px',
                         lineHeight: '1.6',
                         maxWidth: '420px',
-                        fontWeight: '500',
+                        fontWeight: '400',
                       }}
                     >
                       {option.description}
                     </p>
                   </div>
 
-                  {/* Action Button - Enhanced */}
+                  {/* Action Button - Compact */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       option.action();
                     }}
                     style={{
-                      background: option.bgGradient,
+                      background: `linear-gradient(135deg, ${option.color} 0%, #1e40af 100%)`,
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '10px',
                       padding: '12px 28px',
-                      fontSize: '13px',
+                      fontSize: '14px',
                       fontWeight: '700',
                       cursor: 'pointer',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: `0 8px 24px ${option.color}30`,
+                      gap: '10px',
+                      boxShadow: `0 4px 16px ${option.color}25`,
                       minWidth: '180px',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
-                      e.currentTarget.style.boxShadow = `0 12px 32px ${option.color}40`;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = `0 6px 24px ${option.color}35`;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${option.color}30`;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = `0 4px 16px ${option.color}25`;
                     }}
                   >
                     <FontAwesomeIcon icon={option.icon} />
@@ -224,62 +242,186 @@ const AdminSettings = () => {
                 </div>
               </div>
             ))}
-          </div>
 
-          {/* Info Section - Enhanced */}
-          <div style={{ maxWidth: '600px', margin: '36px auto 0', width: '100%' }}>
+            {/* Info Section - Enhanced Placement */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.15)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
+              background: '#ffffff',
+              border: '1px solid rgba(15, 44, 99, 0.1)',
               borderRadius: '16px',
               padding: '24px',
-              color: 'rgba(255, 255, 255, 0.98)',
-              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-              transition: 'all 0.3s ease'
+              boxShadow: '0 4px 20px rgba(15, 44, 99, 0.08), 0 0 0 1px rgba(15, 44, 99, 0.05)',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              overflow: 'hidden',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
-              e.currentTarget.style.boxShadow = '0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.boxShadow = '0 6px 28px rgba(15, 44, 99, 0.12), 0 0 0 1px rgba(15, 44, 99, 0.1)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-              e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(15, 44, 99, 0.08), 0 0 0 1px rgba(15, 44, 99, 0.05)';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              {/* Decorative Accent */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '4px',
+                height: '100%',
+                background: '#f97316',
+                borderRadius: '16px 0 0 16px',
+              }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', paddingLeft: '4px' }}>
                 <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '8px',
-                  background: 'rgba(249, 115, 22, 0.2)',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: '#fef3c7',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid rgba(249, 115, 22, 0.3)'
+                  border: '2px solid #fde68a',
+                  boxShadow: '0 2px 8px rgba(249, 115, 22, 0.15)',
                 }}>
-                  <FontAwesomeIcon icon={faClipboardList} style={{ fontSize: '18px', color: '#fff' }} />
+                  <FontAwesomeIcon icon={faGear} style={{ fontSize: '20px', color: '#f97316' }} />
                 </div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)' }}>System Information</h3>
+                <div>
+                  <h3 style={{ margin: '0 0 2px 0', fontSize: '18px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.3px' }}>System Information</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Key features and capabilities</p>
+                </div>
               </div>
-              <ul style={{ margin: 0, paddingLeft: '0', lineHeight: '1.7', fontSize: '13px', listStyle: 'none' }}>
-                <li style={{ marginBottom: '12px', position: 'relative', paddingLeft: '24px', fontWeight: '500' }}>
-                  <span style={{ position: 'absolute', left: 0, color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>▸</span>
-                  Activity logs provide comprehensive tracking of all system changes and user actions
-                </li>
-                <li style={{ marginBottom: '12px', position: 'relative', paddingLeft: '24px', fontWeight: '500' }}>
-                  <span style={{ position: 'absolute', left: 0, color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>▸</span>
-                  Monitor audit trails for security compliance and system integrity verification
-                </li>
-                <li style={{ marginBottom: '12px', position: 'relative', paddingLeft: '24px', fontWeight: '500' }}>
-                  <span style={{ position: 'absolute', left: 0, color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>▸</span>
-                  Track detailed event history including timestamps, user identities, and action types
-                </li>
-                <li style={{ position: 'relative', paddingLeft: '24px', fontWeight: '500' }}>
-                  <span style={{ position: 'absolute', left: 0, color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>▸</span>
-                  Export and analyze logs for reporting and troubleshooting purposes
-                </li>
-              </ul>
+              
+              <div style={{ paddingLeft: '4px' }}>
+                <ul style={{ margin: 0, paddingLeft: '0', lineHeight: '1.7', fontSize: '14px', listStyle: 'none', display: 'grid', gap: '12px' }}>
+                  <li style={{ 
+                    position: 'relative', 
+                    paddingLeft: '24px', 
+                    fontWeight: '400', 
+                    color: '#475569',
+                    padding: '10px 14px',
+                    background: 'rgba(15, 44, 99, 0.03)',
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.06)';
+                    e.currentTarget.style.transform = 'translateX(3px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.03)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                  >
+                    <span style={{ 
+                      position: 'absolute', 
+                      left: '14px', 
+                      top: '14px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#0f2c63',
+                      boxShadow: '0 0 0 2px rgba(15, 44, 99, 0.1)',
+                    }} />
+                    Activity logs provide comprehensive tracking of all system changes and user actions
+                  </li>
+                  <li style={{ 
+                    position: 'relative', 
+                    paddingLeft: '24px', 
+                    fontWeight: '400', 
+                    color: '#475569',
+                    padding: '10px 14px',
+                    background: 'rgba(15, 44, 99, 0.03)',
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.06)';
+                    e.currentTarget.style.transform = 'translateX(3px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.03)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                  >
+                    <span style={{ 
+                      position: 'absolute', 
+                      left: '14px', 
+                      top: '14px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#0f2c63',
+                      boxShadow: '0 0 0 2px rgba(15, 44, 99, 0.1)',
+                    }} />
+                    Monitor audit trails for security compliance and system integrity verification
+                  </li>
+                  <li style={{ 
+                    position: 'relative', 
+                    paddingLeft: '24px', 
+                    fontWeight: '400', 
+                    color: '#475569',
+                    padding: '10px 14px',
+                    background: 'rgba(15, 44, 99, 0.03)',
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.06)';
+                    e.currentTarget.style.transform = 'translateX(3px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.03)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                  >
+                    <span style={{ 
+                      position: 'absolute', 
+                      left: '14px', 
+                      top: '14px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#0f2c63',
+                      boxShadow: '0 0 0 2px rgba(15, 44, 99, 0.1)',
+                    }} />
+                    Track detailed event history including timestamps, user identities, and action types
+                  </li>
+                  <li style={{ 
+                    position: 'relative', 
+                    paddingLeft: '24px', 
+                    fontWeight: '400', 
+                    color: '#475569',
+                    padding: '10px 14px',
+                    background: 'rgba(15, 44, 99, 0.03)',
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.06)';
+                    e.currentTarget.style.transform = 'translateX(3px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(15, 44, 99, 0.03)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                  >
+                    <span style={{ 
+                      position: 'absolute', 
+                      left: '14px', 
+                      top: '14px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#0f2c63',
+                      boxShadow: '0 0 0 2px rgba(15, 44, 99, 0.1)',
+                    }} />
+                    Export and analyze logs for reporting and troubleshooting purposes
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

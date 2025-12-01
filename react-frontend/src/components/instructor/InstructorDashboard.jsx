@@ -1,7 +1,7 @@
 import InstructorSidebar from '../common/InstructorSidebar.jsx';
 import InstructorHeader from '../common/InstructorHeader.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faCalendarAlt, faClock, faMapMarkerAlt, faFilter, faCalendarWeek, faSync, faExternalLinkAlt, faCheckCircle, faExclamationCircle, faChevronDown, faChevronUp, faListCheck, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faCalendarAlt, faClock, faMapMarkerAlt, faFilter, faCalendarWeek, faExternalLinkAlt, faListCheck, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/InstructorDashboard.css';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import React, { useState, useEffect, useContext, useMemo } from 'react';
@@ -22,11 +22,8 @@ const InstructorDashboard = () => {
   });
 
   const [allSchedules, setAllSchedules] = useState([]);
-  const [syncedSchedules, setSyncedSchedules] = useState([]);
   const [calendarConfigured, setCalendarConfigured] = useState(false);
-  const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [weeklyWorkload, setWeeklyWorkload] = useState({ classes: 0, totalMinutes: 0, averageDailyMinutes: 0, daysWithClasses: 0 });
-  const [calendarMinimized, setCalendarMinimized] = useState(true);
   
   // To-Do List State
   const [todos, setTodos] = useState([]);
@@ -291,7 +288,6 @@ const InstructorDashboard = () => {
     if (!userEmail) return;
 
     const fetchCalendarEvents = async () => {
-      setLoadingCalendar(true);
       try {
         const token = localStorage.getItem('token');
         const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
@@ -304,25 +300,20 @@ const InstructorDashboard = () => {
 
         if (response.ok) {
           const data = await response.json();
-          setSyncedSchedules(data.syncedSchedules || []);
           setCalendarConfigured(data.configured !== false); // Default to true if not explicitly false
         } else if (response.status === 503) {
           // Google Calendar not configured
           const errorData = await response.json().catch(() => ({}));
           console.warn('Google Calendar not configured:', errorData);
           setCalendarConfigured(false);
-          setSyncedSchedules([]);
         } else {
           // Other error - still try to get configured status
           const errorData = await response.json().catch(() => ({}));
           setCalendarConfigured(errorData.configured === true);
-          setSyncedSchedules([]);
         }
       } catch (error) {
         console.error('Error fetching calendar events:', error);
         setCalendarConfigured(false);
-      } finally {
-        setLoadingCalendar(false);
       }
     };
 
@@ -354,8 +345,12 @@ const InstructorDashboard = () => {
     // Real-time schedule creation
     socket.on('schedule-created', (data) => {
       console.log('📢 New schedule created:', data);
-      // Refresh schedules without page flickering
-      setAllSchedules(prev => [...prev, data.schedule]);
+      // Only add if it doesn't already exist (prevent duplicates)
+      setAllSchedules(prev => {
+        const exists = prev.some(s => s._id === data.schedule?._id);
+        if (exists) return prev; // Already exists, don't add again
+        return [...prev, data.schedule];
+      });
       showToast('✓ New schedule added', 'success', 2000);
     });
 
@@ -381,7 +376,12 @@ const InstructorDashboard = () => {
     socket.on(`schedule-update-${userEmail}`, (data) => {
       console.log('📢 Your schedule changed:', data);
       if (data.action === 'created') {
-        setAllSchedules(prev => [...prev, data.schedule]);
+        // Only add if it doesn't already exist (prevent duplicates)
+        setAllSchedules(prev => {
+          const exists = prev.some(s => s._id === data.schedule?._id);
+          if (exists) return prev; // Already exists, don't add again
+          return [...prev, data.schedule];
+        });
       } else if (data.action === 'updated') {
         setAllSchedules(prev => 
           prev.map(s => s._id === data.schedule._id ? data.schedule : s)
@@ -421,104 +421,9 @@ const InstructorDashboard = () => {
     };
   }, [userEmail, showToast]);
 
-  // Convert synced schedules to upcoming events format (must be before early return)
-  const upcomingScheduleEvents = useMemo(() => {
-    if (!syncedSchedules || syncedSchedules.length === 0) return [];
-    
-    // Helper functions defined inside useMemo to avoid dependency issues
-    const dayToDayOfWeek = (dayName) => {
-      const dayMap = {
-        'sunday': 0, 'sun': 0,
-        'monday': 1, 'mon': 1,
-        'tuesday': 2, 'tue': 2, 'tues': 2,
-        'wednesday': 3, 'wed': 3, 'weds': 3,
-        'thursday': 4, 'thu': 4, 'thur': 4, 'thurs': 4,
-        'friday': 5, 'fri': 5,
-        'saturday': 6, 'sat': 6,
-      };
-      return dayMap[dayName?.toLowerCase()] ?? null;
-    };
-
-    const parseTime = (timeStr) => {
-      if (!timeStr) return null;
-      const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      if (!match) return null;
-      let [, hours, minutes, period] = match;
-      hours = parseInt(hours);
-      minutes = parseInt(minutes);
-      if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-      if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
-      return { hours, minutes };
-    };
-
-    const getNextScheduleOccurrence = (schedule) => {
-      const dayName = schedule.day;
-      const timeStr = schedule.time;
-      
-      const dayOfWeek = dayToDayOfWeek(dayName);
-      if (dayOfWeek === null) return null;
-      
-      const timeData = parseTime(timeStr?.split(' - ')[0]?.trim());
-      if (!timeData) return null;
-      
-      const now = new Date();
-      const currentDay = now.getDay();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      
-      // Calculate days until next occurrence
-      let daysUntil = dayOfWeek - currentDay;
-      if (daysUntil < 0 || (daysUntil === 0 && (currentHour * 60 + currentMinute >= timeData.hours * 60 + timeData.minutes))) {
-        daysUntil += 7;
-      }
-      
-      const nextDate = new Date(now);
-      nextDate.setDate(now.getDate() + daysUntil);
-      nextDate.setHours(timeData.hours, timeData.minutes, 0, 0);
-      
-      return nextDate;
-    };
-    
-    const events = syncedSchedules
-      .map(schedule => {
-        const nextOccurrence = getNextScheduleOccurrence(schedule);
-        if (!nextOccurrence) return null;
-        
-        return {
-          id: schedule._id,
-          summary: schedule.subject || 'Class',
-          start: {
-            dateTime: nextOccurrence.toISOString(),
-            date: null
-          },
-          location: schedule.room || '',
-          description: `Course: ${schedule.course || ''}\nYear: ${schedule.year || ''}\nSection: ${schedule.section || ''}`,
-          schedule: schedule // Keep original schedule data
-        };
-      })
-      .filter(event => event !== null)
-      .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime))
-      .filter(event => new Date(event.start.dateTime) >= new Date()); // Only future events
-    
-    return events;
-  }, [syncedSchedules]);
-
   if (!userEmail) {
     return <p>Loading user information...</p>;
   }
-
-  // Format date for display
-  const formatEventDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-  };
 
   // Get Google Calendar URL
   const getGoogleCalendarUrl = () => {
@@ -526,79 +431,60 @@ const InstructorDashboard = () => {
   };
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#fafafa' }}>
       <InstructorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-content responsive-shell" style={{ marginTop: '140px' }}>
-          {/* Welcome Section */}
-          <div className="welcome-section" style={{ 
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(12px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                border: '1px solid rgba(255, 255, 255, 0.3)'
-              }}>
-                <FontAwesomeIcon icon={faUser} style={{ fontSize: 24, color: '#fff' }} />
-              </div>
-              <h2 style={{ 
-                margin: 0, 
-                color: '#ffffff', 
-                fontSize: '24px', 
-                fontWeight: '800',
-                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                letterSpacing: '-0.3px'
-              }}>
-                Welcome, {instructorData.firstname && instructorData.lastname 
-                  ? `${instructorData.firstname} ${instructorData.lastname}`
-                  : instructorData.firstname || instructorData.lastname || 'Instructor'}!
-              </h2>
+        <div className="dashboard-content responsive-shell" style={{ marginTop: '140px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '800', color: '#1f2937' }}>
+            Welcome, {instructorData.firstname && instructorData.lastname 
+              ? `${instructorData.firstname} ${instructorData.lastname}`
+              : instructorData.firstname || instructorData.lastname || 'Instructor'}!
+          </h2>
+          <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>
+            Here's your dashboard overview and today's class schedule.
+            {instructorData.instructorId && ` ID-${instructorData.instructorId}`}
+          </p>
+          
+          {/* Google Calendar Button */}
+          {calendarConfigured && (
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <a
+                href={getGoogleCalendarUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  background: '#0f2c63',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(15, 44, 99, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#1e3a72';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#0f2c63';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 44, 99, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <FontAwesomeIcon icon={faExternalLinkAlt} />
+                Open Google Calendar
+              </a>
             </div>
-            <p style={{ 
-              margin: 0, 
-              color: 'rgba(255,255,255,0.95)', 
-              fontSize: '14px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexWrap: 'wrap'
-            }}>
-              <span>Here's your dashboard overview and today's class schedule.</span>
-              {instructorData.instructorId && (
-                <span style={{ 
-                  padding: '4px 12px', 
-                  background: 'rgba(255, 255, 255, 0.25)', 
-                  backdropFilter: 'blur(8px)',
-                  borderRadius: '8px', 
-                  fontSize: '12px', 
-                  fontWeight: '700', 
-                  color: '#fff',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }}>
-                  ID-{instructorData.instructorId}
-                </span>
-              )}
-            </p>
-          </div>
-
+          )}
 
           {/* Enhanced Weekly Workload Summary */}
           <div style={{
@@ -630,7 +516,7 @@ const InstructorDashboard = () => {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
             }}
             >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#f97316' }} />
               <div style={{ flex: 1 }}>
                 <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Classes This Week
@@ -646,7 +532,7 @@ const InstructorDashboard = () => {
                 width: '56px',
                 height: '56px',
                 borderRadius: '14px',
-                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                background: '#f97316',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -682,7 +568,7 @@ const InstructorDashboard = () => {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
             }}
             >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#0ea5e9' }} />
               <div style={{ flex: 1 }}>
                 <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Total Hours
@@ -698,7 +584,7 @@ const InstructorDashboard = () => {
                 width: '56px',
                 height: '56px',
                 borderRadius: '14px',
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                background: '#0ea5e9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -734,7 +620,7 @@ const InstructorDashboard = () => {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
             }}
             >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#10b981' }} />
               <div style={{ flex: 1 }}>
                 <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Avg Hours / Day
@@ -750,7 +636,7 @@ const InstructorDashboard = () => {
                 width: '56px',
                 height: '56px',
                 borderRadius: '14px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                background: '#10b981',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -786,7 +672,7 @@ const InstructorDashboard = () => {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
             }}
             >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#1e293b' }} />
               <div style={{ flex: 1 }}>
                 <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Busiest Day
@@ -804,7 +690,7 @@ const InstructorDashboard = () => {
                 width: '56px',
                 height: '56px',
                 borderRadius: '14px',
-                background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                background: '#1e293b',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -820,7 +706,7 @@ const InstructorDashboard = () => {
 
           {/* To-Do List Section */}
           <div style={{ 
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', 
+            background: '#ffffff', 
             borderRadius: '12px', 
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)', 
             padding: '24px',
@@ -833,7 +719,7 @@ const InstructorDashboard = () => {
                 My To-Do List
               </h3>
               <span style={{ 
-                background: 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)', 
+                background: '#0f2c63', 
                 color: 'white', 
                 padding: '4px 12px', 
                 borderRadius: '20px', 
@@ -867,7 +753,7 @@ const InstructorDashboard = () => {
               <button
                 onClick={handleAddTodo}
                 style={{
-                  background: 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)',
+                  background: '#0f2c63',
                   color: 'white',
                   border: 'none',
                   borderRadius: '10px',
@@ -1063,7 +949,7 @@ const InstructorDashboard = () => {
                       position: 'sticky',
                       top: 0,
                       zIndex: 10,
-                      background: 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)',
+                      background: '#0f2c63',
                       color: 'white',
                     }}
                   >
@@ -1180,7 +1066,7 @@ const InstructorDashboard = () => {
                           >
                             <span
                               style={{
-                                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                                background: '#0f2c63',
                                 color: 'white',
                                 padding: '4px 10px',
                                 borderRadius: '12px',
@@ -1223,7 +1109,7 @@ const InstructorDashboard = () => {
                           >
                             <span
                               style={{
-                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                                background: '#10b981',
                                 color: 'white',
                                 padding: '4px 8px',
                                 borderRadius: '8px',
@@ -1253,7 +1139,7 @@ const InstructorDashboard = () => {
               <div style={{ 
                 textAlign: 'center', 
                 padding: '60px 20px', 
-                background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                background: '#f8fafc',
                 borderRadius: '15px',
                 border: '2px dashed #cbd5e1'
               }}>
@@ -1289,154 +1175,6 @@ const InstructorDashboard = () => {
               </div>
             )}
           </div>
-
-          {/* Google Calendar Section */}
-          {calendarConfigured && (
-            <div className="instructor-card calendar-card">
-              <div className="section-header">
-                <div className="section-title">
-                  <FontAwesomeIcon icon={faCalendarAlt} className="section-icon" />
-                  <div>
-                    <p className="section-eyebrow">Google Calendar</p>
-                    <h3 className="section-heading">Upcoming events</h3>
-                  </div>
-                  {syncedSchedules.length > 0 && (
-                    <span className="calendar-chip">
-                      <FontAwesomeIcon icon={faCheckCircle} style={{ fontSize: '11px' }} />
-                      {syncedSchedules.length} synced
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <a
-                    className="calendar-link"
-                    href={getGoogleCalendarUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    <FontAwesomeIcon icon={faExternalLinkAlt} />
-                    Open Calendar
-                  </a>
-                  <button
-                    onClick={() => setCalendarMinimized(prev => !prev)}
-                    aria-expanded={!calendarMinimized}
-                    title={calendarMinimized ? 'Show calendar details' : 'Minimize calendar'}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#374151',
-                      padding: '6px'
-                    }}
-                  >
-                    <FontAwesomeIcon icon={calendarMinimized ? faChevronDown : faChevronUp} />
-                  </button>
-                </div>
-              </div>
-
-              {loadingCalendar ? (
-                <div className="card-loading">
-                  <FontAwesomeIcon icon={faSync} spin className="card-loading__icon" />
-                  <p>Loading calendar events...</p>
-                </div>
-              ) : calendarMinimized ? (
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <strong style={{ color: '#0f172a' }}>{upcomingScheduleEvents[0]?.summary || (upcomingScheduleEvents.length > 0 ? 'Upcoming class' : 'No events')}</strong>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>
-                      {upcomingScheduleEvents.length > 0 
-                        ? formatEventDate(upcomingScheduleEvents[0]?.start?.dateTime || '') 
-                        : 'No upcoming classes'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>{upcomingScheduleEvents.length} upcoming</span>
-                    <button onClick={() => setCalendarMinimized(false)} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}>Show details</button>
-                  </div>
-                </div>
-              ) : upcomingScheduleEvents.length > 0 ? (
-                <div className="calendar-events">
-                  {upcomingScheduleEvents.slice(0, 5).map((event, index) => (
-                    <div key={event.id || index} className="calendar-event">
-                      <h5>{event.summary || 'Class'}</h5>
-                      <div className="calendar-event__meta">
-                        <span>
-                          <FontAwesomeIcon icon={faClock} /> {formatEventDate(event.start?.dateTime || '')}
-                        </span>
-                        {event.location && (
-                          <span>
-                            <FontAwesomeIcon icon={faMapMarkerAlt} /> {event.location}
-                          </span>
-                        )}
-                        {event.schedule?.day && (
-                          <span>
-                            <FontAwesomeIcon icon={faCalendarAlt} /> {event.schedule.day}
-                          </span>
-                        )}
-                      </div>
-                      {event.description && (
-                        <p className="calendar-event__description">
-                          {event.description.split('\n')[0]}
-                        </p>
-                      )}
-                      {event.schedule?.time && (
-                        <p className="calendar-event__description" style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                          Time: {event.schedule.time}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                  {upcomingScheduleEvents.length > 5 && (
-                    <p className="calendar-more">
-                      And {upcomingScheduleEvents.length - 5} more upcoming classes. View all in Google Calendar.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="calendar-empty">
-                  <FontAwesomeIcon icon={faCalendarAlt} style={{ fontSize: '36px', color: '#cbd5f5', marginBottom: '8px' }} />
-                  <p>No upcoming classes scheduled. Your schedules sync automatically to Google Calendar.</p>
-                </div>
-              )}
-
-              {syncedSchedules.length > 0 && (
-                <div className="synced-schedules">
-                  <h4>
-                    <FontAwesomeIcon icon={faSync} style={{ color: '#4285f4', fontSize: '14px' }} />
-                    Synced Schedules ({syncedSchedules.length})
-                  </h4>
-                  <div className="synced-schedule-list">
-                    {syncedSchedules.map((schedule) => (
-                      <div key={schedule._id} className="synced-schedule-card">
-                        <FontAwesomeIcon icon={faCheckCircle} style={{ color: '#10b981', fontSize: '14px' }} />
-                        <div>
-                          <p>{schedule.subject}</p>
-                          <p>{schedule.day} • {schedule.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!calendarConfigured && !loadingCalendar && (
-            <div className="instructor-card calendar-notice">
-              <div className="section-title">
-                <FontAwesomeIcon icon={faExclamationCircle} className="section-icon" />
-                <div>
-                  <p className="section-eyebrow">Google Calendar</p>
-                  <h3 className="section-heading">Integration unavailable</h3>
-                </div>
-              </div>
-              <p style={{ color: '#475569', fontSize: '13px', marginTop: '10px', lineHeight: '1.6' }}>
-                Google Calendar integration is not yet configured for your account. Once enabled, your schedules will sync automatically to Google Calendar.
-                Please contact your administrator for assistance.
-              </p>
-            </div>
-          )}
       </main>
     </div>
   );

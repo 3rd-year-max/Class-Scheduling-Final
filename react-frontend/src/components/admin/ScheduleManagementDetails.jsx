@@ -25,6 +25,7 @@ import Header from '../common/Header.jsx';
 import { useToast } from '../common/ToastProvider.jsx';
 import ConfirmationDialog from '../common/ConfirmationDialog.jsx';
 import ConflictResolutionModal from './ConflictResolutionModal.jsx';
+import VersionConflictModal from '../common/VersionConflictModal.jsx';
 
 // ============== SCHEDULE VALIDATION UTILITIES ==============
 const parseTime = (timeStr) => {
@@ -42,6 +43,24 @@ const parseTime = (timeStr) => {
   }
   
   return hours * 60 + minutes;
+};
+
+// Sort schedules by time (earliest to latest)
+const sortSchedulesByTime = (schedules) => {
+  return [...schedules].sort((a, b) => {
+    if (!a.time || !b.time) return 0;
+    // Extract start time from "7:30 AM - 10:00 AM" format
+    const getStartTime = (timeStr) => {
+      const startTime = timeStr.split(' - ')[0]?.trim();
+      return parseTime(startTime);
+    };
+    const timeA = getStartTime(a.time);
+    const timeB = getStartTime(b.time);
+    if (timeA === null && timeB === null) return 0;
+    if (timeA === null) return 1; // Put schedules without time at the end
+    if (timeB === null) return -1;
+    return timeA - timeB; // Sort earliest to latest
+  });
 };
 
 const doTimesOverlap = (start1, end1, start2, end2) => {
@@ -268,6 +287,7 @@ const ScheduleManagementDetails = () => {
   const [formRoom, setFormRoom] = useState('');
   const [availabilitySlots, setAvailabilitySlots] = useState([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [showVersionConflictModal, setShowVersionConflictModal] = useState(false);
   const startTimeInputRef = useRef(null);
   const endTimeInputRef = useRef(null);
 
@@ -277,18 +297,62 @@ const ScheduleManagementDetails = () => {
       shortName: 'BSIT',
       icon: faGraduationCap,
       gradient: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+      color: '#0f2c63',
     },
     'bsemc-dat': {
       name: 'Bachelor of Science in Entertainment and Multimedia Computing',
       shortName: 'BSEMC-DAT',
       icon: faCode,
       gradient: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+      color: '#7c3aed',
     }
   };
 
   const formatYearDisplay = (yearParam) => {
     return yearParam.replace(/(\d+)/, '$1 ').replace(/([a-z])([A-Z])/g, '$1 $2');
   };
+
+  // Map course to department for filtering instructors
+  const getDepartmentForCourse = (courseParam) => {
+    if (!courseParam) return [];
+    const courseToDepartment = {
+      'bsit': ['IT', 'Information Technology', 'Information Technology Department'],
+      'bsemc-dat': ['EMC', 'Entertainment and Multimedia Computing', 'Entertainment and Multimedia Computing Department']
+    };
+    return courseToDepartment[courseParam.toLowerCase()] || [];
+  };
+
+  // Filter instructors based on the current course
+  const getFilteredInstructors = useCallback(() => {
+    try {
+      if (!instructors || !Array.isArray(instructors)) return [];
+      if (!course) return instructors; // If no course, show all
+      
+      const allowedDepartments = getDepartmentForCourse(course);
+      if (allowedDepartments.length === 0) return instructors; // If no mapping, show all
+      
+      const filtered = instructors.filter(inst => {
+        if (!inst) return false;
+        if (!inst.department) return false; // Exclude instructors without department
+        
+        const instDept = String(inst.department).trim().toLowerCase();
+        if (!instDept) return false; // Exclude empty departments
+        
+        return allowedDepartments.some(dept => {
+          const deptLower = String(dept).toLowerCase();
+          // Exact match or contains match (handles variations)
+          return instDept === deptLower || 
+                 instDept.includes(deptLower) || 
+                 deptLower.includes(instDept);
+        });
+      });
+      
+      return filtered;
+    } catch (error) {
+      console.error('Error filtering instructors:', error);
+      return instructors || []; // Fallback to all instructors on error
+    }
+  }, [instructors, course]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -310,7 +374,15 @@ const ScheduleManagementDetails = () => {
       let schedulesData = [];
       if (Array.isArray(schedulesRes.data)) schedulesData = schedulesRes.data;
       else if (schedulesRes.data && Array.isArray(schedulesRes.data.schedules)) schedulesData = schedulesRes.data.schedules;
-      setSchedules(schedulesData.filter(s => !s.archived));
+      // Filter and ensure __v is preserved for MVCC
+      const filteredSchedules = schedulesData.filter(s => !s.archived);
+      // Log to verify __v is present (for debugging)
+      if (filteredSchedules.length > 0 && filteredSchedules[0].__v === undefined) {
+        console.warn('Warning: Schedule data missing __v field!', filteredSchedules[0]);
+      }
+      // Sort schedules by time (earliest to latest)
+      const sortedSchedules = sortSchedulesByTime(filteredSchedules);
+      setSchedules(sortedSchedules);
       
       // Handle instructor data - backend now returns plain array
       let instructorsArray = [];
@@ -324,7 +396,8 @@ const ScheduleManagementDetails = () => {
         .map(inst => ({
           id: inst.instructorId || inst._id,
           name: `${inst.firstname} ${inst.lastname}`,
-          email: inst.email
+          email: inst.email,
+          department: inst.department || ''
         }));
       setInstructors(activeInstructors);
       
@@ -442,7 +515,8 @@ const ScheduleManagementDetails = () => {
   };
   
   const getSectionSchedules = useCallback((sectionName) => {
-    return schedules.filter(sched => sched.section === sectionName);
+    const sectionSchedules = schedules.filter(sched => sched.section === sectionName);
+    return sortSchedulesByTime(sectionSchedules);
   }, [schedules]);
 
   const handleSlotSelect = (slot) => {
@@ -601,16 +675,90 @@ const ScheduleManagementDetails = () => {
     }
   };
 
-  const handleEditClick = (schedule) => {
-    setScheduleToEdit(schedule);
-    setShowEditSchedulePopup(true);
+  const handleEditClick = async (schedule) => {
+    // Check for version conflict before opening edit modal
+    // If versions match, allow editing (first editor proceeds)
+    // If versions don't match, show conflict (someone else already edited)
+    try {
+      // Fetch the latest version from the server
+      const latestScheduleRes = await apiClient.getScheduleById(schedule._id);
+      // Response format: { success: true, message: "...", data: { ...schedule } }
+      const latestScheduleData = latestScheduleRes.data?.data || latestScheduleRes.data;
+      const latestVersion = latestScheduleData?.__v;
+      const currentVersion = schedule.__v ?? schedule.version;
+      
+      // If versions don't match, someone else has already edited this schedule
+      // Show conflict and prevent editing
+      if (latestVersion !== undefined && currentVersion !== undefined && latestVersion !== currentVersion) {
+        setShowVersionConflictModal(true);
+        return;
+      }
+      
+      // Versions match - allow editing (first editor proceeds)
+      // Update schedule with latest data and version to ensure we have the most current version
+      const updatedSchedule = {
+        ...schedule,
+        ...latestScheduleData,
+        __v: latestVersion ?? currentVersion
+      };
+      
+      setScheduleToEdit(updatedSchedule);
+      setShowEditSchedulePopup(true);
+    } catch (error) {
+      console.error('Error checking schedule version:', error);
+      // If version check fails, still allow editing but warn user
+      if (error.isVersionConflict || error.code === 'VERSION_CONFLICT') {
+        setShowVersionConflictModal(true);
+        return;
+      }
+      // Fallback: allow editing with current data
+      setScheduleToEdit(schedule);
+      setShowEditSchedulePopup(true);
+    }
   };
 
   // --- Reschedule helpers ---
-  const openRescheduleModal = (schedule) => {
-    setRescheduleModal({ visible: true, schedule, suggestions: [], loading: true });
-    // compute suggestions asynchronously
-    setTimeout(() => computeRescheduleSuggestions(schedule), 50);
+  const openRescheduleModal = async (schedule) => {
+    // Check for version conflict before opening reschedule modal
+    // If versions match, allow rescheduling (first editor proceeds)
+    // If versions don't match, show conflict (someone else already edited)
+    try {
+      // Fetch the latest version from the server
+      const latestScheduleRes = await apiClient.getScheduleById(schedule._id);
+      // Response format: { success: true, message: "...", data: { ...schedule } }
+      const latestScheduleData = latestScheduleRes.data?.data || latestScheduleRes.data;
+      const latestVersion = latestScheduleData?.__v;
+      const currentVersion = schedule.__v ?? schedule.version;
+      
+      // If versions don't match, someone else has already edited this schedule
+      // Show conflict and prevent rescheduling
+      if (latestVersion !== undefined && currentVersion !== undefined && latestVersion !== currentVersion) {
+        setShowVersionConflictModal(true);
+        return;
+      }
+      
+      // Versions match - allow rescheduling (first editor proceeds)
+      // Update schedule with latest data and version to ensure we have the most current version
+      const updatedSchedule = {
+        ...schedule,
+        ...latestScheduleData,
+        __v: latestVersion ?? currentVersion
+      };
+      
+      setRescheduleModal({ visible: true, schedule: updatedSchedule, suggestions: [], loading: true });
+      // compute suggestions asynchronously
+      setTimeout(() => computeRescheduleSuggestions(updatedSchedule), 50);
+    } catch (error) {
+      console.error('Error checking schedule version for reschedule:', error);
+      // If version check fails, still allow rescheduling but warn user
+      if (error.isVersionConflict || error.code === 'VERSION_CONFLICT') {
+        setShowVersionConflictModal(true);
+        return;
+      }
+      // Fallback: allow rescheduling with current data
+      setRescheduleModal({ visible: true, schedule, suggestions: [], loading: true });
+      setTimeout(() => computeRescheduleSuggestions(schedule), 50);
+    }
   };
 
   const closeRescheduleModal = () => setRescheduleModal({ visible: false, schedule: null, suggestions: [], loading: false });
@@ -694,6 +842,16 @@ const ScheduleManagementDetails = () => {
     setRescheduleModal(prev => ({ ...prev, loading: true }));
     try {
       const schedule = rescheduleModal.schedule;
+      
+      // Ensure version is included for MVCC
+      const version = schedule.__v !== undefined ? schedule.__v : schedule.version;
+      if (version === undefined) {
+        console.error('Schedule version (__v) is missing!', schedule);
+        showToast('Error: Schedule version is missing. Please refresh the page.', 'error');
+        setRescheduleModal(prev => ({ ...prev, loading: false }));
+        return;
+      }
+      
       // Send all required fields for the backend update endpoint
       const update = {
         course: schedule.course,
@@ -705,9 +863,9 @@ const ScheduleManagementDetails = () => {
         day: suggestion.day,
         time: suggestion.time,
         room: suggestion.room,
-        version: schedule.__v, // Include current version for MVCC conflict detection
+        version: version, // Include current version for MVCC conflict detection
       };
-      const res = await apiClient.updateSchedule(schedule._id, update, schedule.__v);
+      const res = await apiClient.updateSchedule(schedule._id, update, version);
       if (res.data.success) {
         showToast('Schedule rescheduled successfully.', 'success');
         await fetchData();
@@ -718,7 +876,9 @@ const ScheduleManagementDetails = () => {
       }
     } catch (err) {
       console.error('Error applying reschedule', err);
-      if (err.response?.status === 409) {
+      if (err.isVersionConflict || err.code === 'VERSION_CONFLICT') {
+        setShowVersionConflictModal(true);
+      } else if (err.response?.status === 409) {
         showToast('⚠️ Schedule was modified. Please refresh and try again.', 'error');
       } else {
         showToast('Error rescheduling. Check conflicts or server logs.', 'error');
@@ -755,8 +915,18 @@ const ScheduleManagementDetails = () => {
       scheduleData.instructorEmail = instructorEmail;
     }
 
+    // Ensure version is included for MVCC
+    const version = scheduleToEdit.__v !== undefined ? scheduleToEdit.__v : scheduleToEdit.version;
+    if (version === undefined) {
+      console.error('Schedule version (__v) is missing!', scheduleToEdit);
+      showToast('Error: Schedule version is missing. Please refresh the page.', 'error');
+      setEditingSchedule(false);
+      return;
+    }
+    scheduleData.version = version;
+
     try {
-      const res = await apiClient.updateSchedule(scheduleToEdit._id, scheduleData, scheduleToEdit.__v);
+      const res = await apiClient.updateSchedule(scheduleToEdit._id, scheduleData, version);
       if (res.data.success) {
         showToast('Schedule updated successfully!', 'success');
         setShowEditSchedulePopup(false);
@@ -766,6 +936,11 @@ const ScheduleManagementDetails = () => {
         showToast(res.data.message || 'Failed to update schedule.', 'error');
       }
     } catch (error) {
+      if (error.isVersionConflict || error.code === 'VERSION_CONFLICT') {
+        setShowVersionConflictModal(true);
+        setEditingSchedule(false);
+        return;
+      }
       if (error.response?.status === 409) {
         showToast('⚠️ Schedule was modified by another user. Please refresh and try again.', 'error');
       } else {
@@ -780,12 +955,18 @@ const ScheduleManagementDetails = () => {
   // Template apply functionality removed (templates/import UI deprecated)
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#fafafa' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Schedule Management" />
-        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px', background: '#fafafa' }}>
           {/* Enhanced Back Button */}
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>
+            {courseDetails[course]?.shortName} - {formatYearDisplay(year)}
+          </h2>
+          <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+            {courseDetails[course]?.name}
+          </p>
           <button
             onClick={() => navigate('/admin/schedule-management')}
             style={{
@@ -821,61 +1002,6 @@ const ScheduleManagementDetails = () => {
             <span>Back to Year Levels</span>
           </button>
 
-          {/* Enhanced Course Header */}
-          <div style={{
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            color: '#ffffff',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}>
-                <FontAwesomeIcon 
-                  icon={courseDetails[course]?.icon || faGraduationCap}
-                  style={{ fontSize: 28, color: '#fff' }}
-                />
-              </div>
-              <div>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
-                }}>
-                  {courseDetails[course]?.shortName} - {formatYearDisplay(year)}
-                </h2>
-                <p style={{
-                  margin: '6px 0 0 0',
-                  fontSize: '14px',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: '500',
-                }}>
-                  {courseDetails[course]?.name}
-                </p>
-              </div>
-            </div>
-          </div>
 
           {loading ? (
             <div style={{
@@ -914,7 +1040,7 @@ const ScheduleManagementDetails = () => {
                 onClick={() => navigate('/admin/manage-schedule')}
                 style={{
                   padding: '14px 28px',
-                  background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                  background: '#0f2c63',
                   color: 'white',
                   border: 'none',
                   borderRadius: '12px',
@@ -924,14 +1050,16 @@ const ScheduleManagementDetails = () => {
                   boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
                   transition: 'all 0.3s ease',
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 44, 99, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
-                }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.background = '#1e3a72';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 44, 99, 0.3)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.background = '#0f2c63';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.2)';
+                              }}
               >
                 Go to Section Management
               </button>
@@ -959,7 +1087,7 @@ const ScheduleManagementDetails = () => {
                   left: 0,
                   right: 0,
                   height: '6px',
-                  background: courseDetails[course]?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                  background: courseDetails[course]?.color || '#f97316',
                   borderRadius: '24px 24px 0 0',
                 }} />
                 
@@ -982,7 +1110,7 @@ const ScheduleManagementDetails = () => {
                     Sections
                   </h3>
                   <span style={{
-                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    background: '#6366f1',
                     color: '#ffffff',
                     padding: '6px 14px',
                     borderRadius: '12px',
@@ -1001,7 +1129,7 @@ const ScheduleManagementDetails = () => {
                       onClick={() => setSelectedSection(section)}
                       style={{
                         background: selectedSection?._id === section._id 
-                          ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' 
+                          ? '#eff6ff' 
                           : '#f9fafb',
                         border: selectedSection?._id === section._id 
                           ? '2px solid #3b82f6' 
@@ -1072,7 +1200,7 @@ const ScheduleManagementDetails = () => {
                   left: 0,
                   right: 0,
                   height: '6px',
-                  background: courseDetails[course]?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                  background: courseDetails[course]?.color || '#f97316',
                   borderRadius: '24px 24px 0 0',
                 }} />
                 {!selectedSection ? (
@@ -1122,7 +1250,7 @@ const ScheduleManagementDetails = () => {
                               onClick={openAddSchedulePopup}
                               style={{
                                 padding: '12px 20px',
-                                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                background: '#059669',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '12px',
@@ -1137,11 +1265,13 @@ const ScheduleManagementDetails = () => {
                               }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.4)';
+                                e.currentTarget.style.background = '#047857';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.3)';
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
+                                e.currentTarget.style.background = '#059669';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.2)';
                               }}
                             >
                               <FontAwesomeIcon icon={faPlus} />
@@ -1204,7 +1334,7 @@ const ScheduleManagementDetails = () => {
                               <div
                                 key={schedule._id}
                                 style={{
-                                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                                  background: '#ffffff',
                                   border: '2px solid #e5e7eb',
                                   borderRadius: '20px',
                                   padding: '24px',
@@ -1230,7 +1360,7 @@ const ScheduleManagementDetails = () => {
                                   left: 0,
                                   right: 0,
                                   height: '4px',
-                                  background: courseDetails[course]?.gradient || 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                                  background: courseDetails[course]?.color || '#f97316',
                                 }} />
                                 <div style={{
                                   display: 'flex',
@@ -1261,7 +1391,7 @@ const ScheduleManagementDetails = () => {
                                     </p>
                                   </div>
                                   <span style={{
-                                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                    background: '#fef3c7',
                                     color: '#b45309',
                                     padding: '6px 14px',
                                     borderRadius: '12px',
@@ -1296,7 +1426,7 @@ const ScheduleManagementDetails = () => {
                                       width: '36px',
                                       height: '36px',
                                       borderRadius: '10px',
-                                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                      background: '#3b82f6',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
@@ -1319,7 +1449,7 @@ const ScheduleManagementDetails = () => {
                                       width: '36px',
                                       height: '36px',
                                       borderRadius: '10px',
-                                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                      background: '#10b981',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
@@ -1342,7 +1472,7 @@ const ScheduleManagementDetails = () => {
                                       width: '36px',
                                       height: '36px',
                                       borderRadius: '10px',
-                                      background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                      background: '#6366f1',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
@@ -1370,7 +1500,7 @@ const ScheduleManagementDetails = () => {
                                       onClick={() => handleEditClick(schedule)}
                                       style={{
                                         padding: '10px 16px',
-                                        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                        background: '#fef3c7',
                                         color: '#b45309',
                                         border: 'none',
                                         borderRadius: '10px',
@@ -1399,7 +1529,7 @@ const ScheduleManagementDetails = () => {
                                       onClick={() => openRescheduleModal(schedule)}
                                       style={{
                                         padding: '10px 16px',
-                                        background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                                        background: '#eef2ff',
                                         color: '#3730a3',
                                         border: 'none',
                                         borderRadius: '10px',
@@ -1769,7 +1899,7 @@ const ScheduleManagementDetails = () => {
                       }}
                     >
                       <option value="">Select Instructor</option>
-                      {instructors.map((instructor) => (
+                      {getFilteredInstructors().map((instructor) => (
                         <option key={instructor.id} value={instructor.name}>
                           {instructor.name} ({instructor.id})
                         </option>
@@ -1836,12 +1966,26 @@ const ScheduleManagementDetails = () => {
                       disabled={addingSchedule}
                       style={{
                         padding: '12px 24px',
-                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                        background: '#059669',
                         color: 'white',
                         border: 'none',
                         borderRadius: '10px',
                         fontWeight: '600',
                         cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 8px rgba(5, 150, 105, 0.2)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!addingSchedule) {
+                          e.currentTarget.style.background = '#047857';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!addingSchedule) {
+                          e.currentTarget.style.background = '#059669';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(5, 150, 105, 0.2)';
+                        }
                       }}
                     >
                       {addingSchedule ? 'Adding...' : 'Add Schedule'}
@@ -1938,7 +2082,7 @@ const ScheduleManagementDetails = () => {
                             <div style={{ fontSize: 13, color: '#64748b' }}>Room: <strong style={{ color: '#0f1724' }}>{sug.room}</strong></div>
                           </div>
                           <div>
-                            <button onClick={() => applyReschedule(sug)} style={{ padding: '8px 14px', background: 'linear-gradient(90deg,#0f2c63,#1e40af)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Apply</button>
+                            <button onClick={() => applyReschedule(sug)} style={{ padding: '8px 14px', background: '#0f2c63', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e3a72'} onMouseLeave={(e) => e.currentTarget.style.background = '#0f2c63'}>Apply</button>
                           </div>
                         </div>
                       ))}
@@ -1988,7 +2132,7 @@ const ScheduleManagementDetails = () => {
                             <div style={{ fontSize: 13, color: '#64748b' }}>{s.day} • {s.time} — {s.room} — {s.instructor}</div>
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => handleRestoreSchedule(s._id)} style={{ padding: '8px 12px', background: 'linear-gradient(90deg,#059669,#047857)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Restore</button>
+                            <button onClick={() => handleRestoreSchedule(s._id)} style={{ padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = '#047857'} onMouseLeave={(e) => e.currentTarget.style.background = '#059669'}>Restore</button>
                           </div>
                         </div>
                       ))}
@@ -2174,7 +2318,7 @@ const ScheduleManagementDetails = () => {
                       }}
                     >
                       <option value="">Select Instructor</option>
-                      {instructors.map((instructor) => (
+                      {getFilteredInstructors().map((instructor) => (
                         <option key={instructor.id} value={instructor.name}>
                           {instructor.name} ({instructor.id})
                         </option>
@@ -2240,12 +2384,26 @@ const ScheduleManagementDetails = () => {
                       disabled={editingSchedule}
                       style={{
                         padding: '12px 24px',
-                        background: editingSchedule ? '#9ca3af' : 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
+                        background: editingSchedule ? '#9ca3af' : '#d97706',
                         color: 'white',
                         border: 'none',
                         borderRadius: '10px',
                         fontWeight: '600',
                         cursor: editingSchedule ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: editingSchedule ? 'none' : '0 2px 8px rgba(217, 119, 6, 0.2)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!editingSchedule) {
+                          e.currentTarget.style.background = '#b45309';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(217, 119, 6, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!editingSchedule) {
+                          e.currentTarget.style.background = '#d97706';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(217, 119, 6, 0.2)';
+                        }
                       }}
                     >
                       {editingSchedule ? 'Updating...' : 'Save Changes'}
@@ -2275,6 +2433,12 @@ const ScheduleManagementDetails = () => {
             onCancel={() => setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false })}
             destructive={confirmDialog.destructive}
             confirmText={confirmDialog.destructive ? "Delete" : "Confirm"}
+          />
+
+          <VersionConflictModal
+            show={showVersionConflictModal}
+            onReload={() => window.location.reload()}
+            onClose={() => setShowVersionConflictModal(false)}
           />
 
           {/* Schedule Template Manager */}

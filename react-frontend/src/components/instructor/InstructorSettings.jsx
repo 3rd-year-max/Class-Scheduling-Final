@@ -189,30 +189,30 @@ const InstructorSettings = () => {
   };
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#fafafa' }}>
       <InstructorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
         <InstructorHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: '140px' }}>
+        <div className="dashboard-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: '140px', background: '#fafafa' }}>
           <div
             style={{
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              background: '#ffffff',
               padding: '28px',
               borderRadius: '16px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
               width: '100%',
               maxWidth: '1000px',
-              border: '1px solid rgba(15, 44, 99, 0.1)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
             }}
           >
             {/* Header Section */}
             <div style={{
-              background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
+              background: '#ffffff',
               borderRadius: '12px',
               padding: '20px 24px',
               marginBottom: '28px',
-              boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
               position: 'relative',
               overflow: 'hidden'
             }}>
@@ -221,23 +221,20 @@ const InstructorSettings = () => {
                   width: '48px',
                   height: '48px',
                   borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(12px)',
+                  background: '#0f2c63',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                  boxShadow: '0 2px 8px rgba(15, 44, 99, 0.2)',
                 }}>
                   <FontAwesomeIcon icon={faUser} style={{ fontSize: 24, color: '#fff' }} />
                 </div>
                 <h2
                   style={{
-                    color: '#ffffff',
+                    color: '#1f2937',
                     fontSize: '24px',
                     fontWeight: '800',
                     margin: 0,
-                    textShadow: '0 2px 8px rgba(0,0,0,0.2)',
                     letterSpacing: '-0.3px'
                   }}
                 >
@@ -292,7 +289,7 @@ const InstructorSettings = () => {
                     htmlFor="profileImageInput"
                     style={{
                       display: 'inline-block',
-                      background: 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)',
+                      background: '#0f2c63',
                       color: 'white',
                       padding: '8px 14px',
                       borderRadius: '8px',
@@ -334,7 +331,7 @@ const InstructorSettings = () => {
                   </label>
                   <div
                     style={{
-                      background: 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)',
+                      background: '#0f2c63',
                       color: 'white',
                       padding: '10px 15px',
                       borderRadius: '10px',
@@ -424,14 +421,15 @@ const InstructorSettings = () => {
                   disabled={saving}
                   style={{
                     padding: '12px 20px',
-                    background: 'linear-gradient(135deg, #0f2c63 0%, #f97316 100%)',
+                    background: saving ? '#9ca3af' : '#0f2c63',
                     color: 'white',
                     border: 'none',
                     borderRadius: '10px',
                     cursor: saving ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     fontWeight: '700',
-                    boxShadow: '0 4px 15px rgba(15, 44, 99, 0.25)'
+                    boxShadow: saving ? 'none' : '0 4px 15px rgba(15, 44, 99, 0.2)',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {saving ? 'Saving...' : 'Save Changes'}

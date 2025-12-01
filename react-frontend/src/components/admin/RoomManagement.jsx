@@ -18,6 +18,7 @@ import { useToast } from '../common/ToastProvider.jsx';
 import ConfirmationDialog from '../common/ConfirmationDialog.jsx';
 import { SkeletonCard } from '../common/SkeletonLoader.jsx';
 import EmptyState from '../common/EmptyState.jsx';
+import VersionConflictModal from '../common/VersionConflictModal.jsx';
 import { normalizeRoomName, formatRoomLabel } from '../../utils/roomUtils';
 
 const RoomManagement = () => {
@@ -46,6 +47,7 @@ const RoomManagement = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showEditRoomPopup, setShowEditRoomPopup] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [showVersionConflictModal, setShowVersionConflictModal] = useState(false);
 
   // Fetch rooms from backend
   const fetchRooms = async () => {
@@ -116,9 +118,46 @@ const RoomManagement = () => {
   };
 
   // Edit Room handlers
-  const navigateToRoomDetails = (room) => {
-    setSelectedRoom(room);
-    setShowEditRoomPopup(true);
+  const navigateToRoomDetails = async (room) => {
+    // Check for version conflict before opening edit modal
+    // If versions match, allow editing (first editor proceeds)
+    // If versions don't match, show conflict (someone else already edited)
+    try {
+      // Fetch the latest version from the server
+      const latestRoomRes = await apiClient.getRoomById(room._id);
+      // Response format: room object directly (not wrapped in data)
+      const latestRoomData = latestRoomRes.data;
+      const latestVersion = latestRoomData?.__v;
+      const currentVersion = room.__v ?? room.version;
+      
+      // If versions don't match, someone else has already edited this room
+      // Show conflict and prevent editing
+      if (latestVersion !== undefined && currentVersion !== undefined && latestVersion !== currentVersion) {
+        setShowVersionConflictModal(true);
+        return;
+      }
+      
+      // Versions match - allow editing (first editor proceeds)
+      // Update room with latest data and version to ensure we have the most current version
+      const updatedRoom = {
+        ...room,
+        ...latestRoomData,
+        __v: latestVersion ?? currentVersion
+      };
+      
+      setSelectedRoom(updatedRoom);
+      setShowEditRoomPopup(true);
+    } catch (error) {
+      console.error('Error checking room version:', error);
+      // If version check fails, still allow editing but warn user
+      if (error.isVersionConflict || error.code === 'VERSION_CONFLICT') {
+        setShowVersionConflictModal(true);
+        return;
+      }
+      // Fallback: allow editing with current data
+      setSelectedRoom(room);
+      setShowEditRoomPopup(true);
+    }
   };
   const updateSelectedRoomField = (field, value) => {
     setSelectedRoom((prev) => ({ ...prev, [field]: value }));
@@ -137,6 +176,11 @@ const RoomManagement = () => {
       }
     } catch (err) {
       console.error('Update room failed:', err);
+      if (err.isVersionConflict || err.code === 'VERSION_CONFLICT') {
+        setShowVersionConflictModal(true);
+        setEditLoading(false);
+        return;
+      }
       showToast('Server error while updating room.', 'error');
     }
     setEditLoading(false);
@@ -260,58 +304,20 @@ const RoomManagement = () => {
 
   return (
     <>
-      <div className="dashboard-container" style={{ display: 'flex', height: '100vh' }}>
+      <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#fafafa' }}>
         <Sidebar />
-        <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+        <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
           <Header title="Room Management" />
 
           {/* Popup removed - using Toast system now */}
 
-          <div className="dashboard-content" style={{ marginTop: '140px' }}>
-            {/* Welcome Section */}
-            <div className="welcome-section" style={{ 
-              marginBottom: '24px',
-              background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-              padding: '20px 24px',
-              borderRadius: '16px',
-              boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: '-50%',
-                right: '-10%',
-                width: '200px',
-                height: '200px',
-                background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-                borderRadius: '50%',
-                pointerEvents: 'none'
-              }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-                }}>
-                  <FontAwesomeIcon 
-                    icon={faDoorOpen} 
-                    style={{ fontSize: 28, color: '#fff' }}
-                  />
-                </div>
-                <div>
-                  <h2 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: '700', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>Room Management</h2>
-                  <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>Manage classrooms and computer laboratories efficiently</p>
-                </div>
-              </div>
-            </div>
+          <div className="dashboard-content" style={{ marginTop: '140px', background: '#fafafa' }}>
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>Room Management</h2>
+            <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>Manage classrooms and computer laboratories efficiently</p>
 
             {/* Stats and Actions Card */}
             <div style={{
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              background: '#ffffff',
               padding: '20px 24px',
               borderRadius: '16px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
@@ -327,7 +333,7 @@ const RoomManagement = () => {
                 left: 0,
                 width: '4px',
                 height: '100%',
-                background: 'linear-gradient(180deg, #f97316 0%, #ea580c 100%)',
+                background: '#f97316',
               }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                 <div>
@@ -345,7 +351,7 @@ const RoomManagement = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 18px',
-                      background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                      background: '#0f2c63',
                       color: 'white',
                       border: 'none',
                       borderRadius: '10px',
@@ -353,16 +359,18 @@ const RoomManagement = () => {
                       fontSize: '13px',
                       fontWeight: '600',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
+                      boxShadow: '0 4px 12px rgba(15, 44, 99, 0.2)',
                     }}
                     onClick={addRoom}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-3px)';
-                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.4)';
+                      e.currentTarget.style.background = '#1e3a72';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.3)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
+                      e.currentTarget.style.background = '#0f2c63';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.2)';
                     }}
                   >
                     <FontAwesomeIcon icon={faPlus} />
@@ -375,9 +383,9 @@ const RoomManagement = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 18px',
-                      background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                      background: '#ffffff',
                       color: '#374151',
-                      border: '1px solid #d1d5db',
+                      border: '2px solid #e5e7eb',
                       borderRadius: '10px',
                       cursor: 'pointer',
                       fontSize: '13px',
@@ -386,12 +394,14 @@ const RoomManagement = () => {
                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)';
+                      e.currentTarget.style.background = '#f3f4f6';
+                      e.currentTarget.style.borderColor = '#d1d5db';
                       e.currentTarget.style.transform = 'translateY(-2px)';
                       e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                     }}
@@ -556,7 +566,7 @@ const RoomManagement = () => {
                       key={room._id}
                       onClick={() => navigateToRoomDetails(room)}
                       style={{
-                        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                        background: '#ffffff',
                         borderRadius: '14px',
                         padding: '20px',
                         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
@@ -583,7 +593,7 @@ const RoomManagement = () => {
                         left: 0,
                         width: '4px',
                         height: '100%',
-                        background: `linear-gradient(180deg, ${statusColors.border} 0%, ${statusColors.border}dd 100%)`,
+                        background: statusColors.border,
                       }} />
                       <div style={{
                         display: 'flex',
@@ -595,7 +605,7 @@ const RoomManagement = () => {
                           width: '48px',
                           height: '48px',
                           borderRadius: '12px',
-                          background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                          background: '#0f2c63',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -660,7 +670,7 @@ const RoomManagement = () => {
                             width: '32px',
                             height: '32px',
                             borderRadius: '8px',
-                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.15) 100%)',
+                            background: 'rgba(59, 130, 246, 0.1)',
                             border: '1px solid rgba(59, 130, 246, 0.2)',
                             display: 'flex',
                             alignItems: 'center',
@@ -668,17 +678,19 @@ const RoomManagement = () => {
                             color: '#3b82f6',
                             cursor: 'pointer',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 2px 6px rgba(59, 130, 246, 0.15)'
+                            boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.25) 100%)';
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
                             e.currentTarget.style.transform = 'scale(1.1)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.15) 100%)';
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.2)';
                             e.currentTarget.style.transform = 'scale(1)';
-                            e.currentTarget.style.boxShadow = '0 2px 6px rgba(59, 130, 246, 0.15)';
+                            e.currentTarget.style.boxShadow = '0 2px 6px rgba(59, 130, 246, 0.1)';
                           }}
                           title="Edit Room"
                         >
@@ -693,7 +705,7 @@ const RoomManagement = () => {
                             width: '32px',
                             height: '32px',
                             borderRadius: '8px',
-                            background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.15) 100%)',
+                            background: 'rgba(251, 146, 60, 0.1)',
                             border: '1px solid rgba(251, 146, 60, 0.2)',
                             display: 'flex',
                             alignItems: 'center',
@@ -701,17 +713,19 @@ const RoomManagement = () => {
                             color: '#f97316',
                             cursor: 'pointer',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 2px 6px rgba(251, 146, 60, 0.15)'
+                            boxShadow: '0 2px 6px rgba(251, 146, 60, 0.1)'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(249, 115, 22, 0.25) 100%)';
+                            e.currentTarget.style.background = 'rgba(251, 146, 60, 0.2)';
+                            e.currentTarget.style.borderColor = 'rgba(251, 146, 60, 0.3)';
                             e.currentTarget.style.transform = 'scale(1.1)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 146, 60, 0.25)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 146, 60, 0.2)';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.15) 100%)';
+                            e.currentTarget.style.background = 'rgba(251, 146, 60, 0.1)';
+                            e.currentTarget.style.borderColor = 'rgba(251, 146, 60, 0.2)';
                             e.currentTarget.style.transform = 'scale(1)';
-                            e.currentTarget.style.boxShadow = '0 2px 6px rgba(251, 146, 60, 0.15)';
+                            e.currentTarget.style.boxShadow = '0 2px 6px rgba(251, 146, 60, 0.1)';
                           }}
                           title="Archive Room"
                         >
@@ -747,7 +761,7 @@ const RoomManagement = () => {
         >
           <div
             style={{
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              background: '#ffffff',
               padding: '24px',
               borderRadius: '16px',
               width: '460px',
@@ -762,11 +776,7 @@ const RoomManagement = () => {
                 fontSize: '20px', 
                 fontWeight: '700', 
                 color: '#0f2c63', 
-                margin: 0,
-                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
+                margin: 0
               }}>Add New Room</h3>
               <button
                 onClick={() => setShowAddRoomPopup(false)}
@@ -913,7 +923,7 @@ const RoomManagement = () => {
                   style={{ 
                     padding: '10px 20px',
                     border: '2px solid #e5e7eb',
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                    background: '#ffffff',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     fontSize: '13px',
@@ -924,11 +934,13 @@ const RoomManagement = () => {
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#f3f4f6';
+                    e.currentTarget.style.borderColor = '#d1d5db';
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#e5e7eb';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                   }}
@@ -940,7 +952,7 @@ const RoomManagement = () => {
                   disabled={addLoading}
                   style={{ 
                     padding: '10px 20px',
-                    background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
+                    background: '#0f2c63',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
@@ -948,18 +960,20 @@ const RoomManagement = () => {
                     fontSize: '13px',
                     fontWeight: '600',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: '0 4px 12px rgba(15, 44, 99, 0.3)',
+                    boxShadow: '0 4px 12px rgba(15, 44, 99, 0.2)',
                     opacity: addLoading ? 0.7 : 1
                   }}
                   onMouseEnter={(e) => {
                     if (!addLoading) {
                       e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.4)';
+                      e.currentTarget.style.background = '#1e3a72';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.3)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.3)';
+                    e.currentTarget.style.background = '#0f2c63';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 44, 99, 0.2)';
                   }}
                 >
                   {addLoading ? 'Adding...' : 'Add Room'}
@@ -990,7 +1004,7 @@ const RoomManagement = () => {
         >
           <div
             style={{
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              background: '#ffffff',
               padding: '24px',
               borderRadius: '16px',
               width: '460px',
@@ -1005,11 +1019,7 @@ const RoomManagement = () => {
                 fontSize: '20px', 
                 fontWeight: '700', 
                 color: '#0f2c63', 
-                margin: 0,
-                background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
+                margin: 0
               }}>Edit Room Details</h3>
               <button
                 onClick={() => setShowEditRoomPopup(false)}
@@ -1154,7 +1164,7 @@ const RoomManagement = () => {
                   style={{ 
                     padding: '10px 20px',
                     border: '2px solid #e5e7eb',
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                    background: '#ffffff',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     fontSize: '13px',
@@ -1165,11 +1175,13 @@ const RoomManagement = () => {
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#f3f4f6';
+                    e.currentTarget.style.borderColor = '#d1d5db';
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#e5e7eb';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
                   }}
@@ -1250,7 +1262,7 @@ const RoomManagement = () => {
                         <div style={{ fontSize: 13, color: '#64748b' }}>Area: {r.area} • Status: {r.status}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleRestoreRoom(r)} style={{ padding: '8px 12px', background: 'linear-gradient(90deg,#059669,#047857)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Restore</button>
+                        <button onClick={() => handleRestoreRoom(r)} style={{ padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', transition: 'all 0.3s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = '#047857'} onMouseLeave={(e) => e.currentTarget.style.background = '#059669'}>Restore</button>
                       </div>
                     </div>
                   ))}
@@ -1270,6 +1282,12 @@ const RoomManagement = () => {
         onCancel={() => setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, destructive: false })}
         destructive={confirmDialog.destructive}
         confirmText={confirmDialog.destructive ? "Delete" : "Confirm"}
+      />
+
+      <VersionConflictModal
+        show={showVersionConflictModal}
+        onReload={() => window.location.reload()}
+        onClose={() => setShowVersionConflictModal(false)}
       />
 
       {/* Conflict Error Modal */}
@@ -1308,7 +1326,7 @@ const RoomManagement = () => {
                   width: '48px',
                   height: '48px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  background: '#ef4444',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1337,7 +1355,7 @@ const RoomManagement = () => {
                 onClick={() => setConflictError({ show: false, message: '' })}
                 style={{
                   padding: '12px 24px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  background: '#3b82f6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '10px',
@@ -1345,15 +1363,17 @@ const RoomManagement = () => {
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
+                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.2)',
                 }}
                 onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#2563eb';
                   e.currentTarget.style.transform = 'scale(1.05)';
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.35)';
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#3b82f6';
                   e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.25)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.2)';
                 }}
               >
                 OK

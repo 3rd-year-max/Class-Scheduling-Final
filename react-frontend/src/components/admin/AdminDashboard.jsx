@@ -216,64 +216,17 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+    <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: '#fafafa' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Admin Dashboard" onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px' }}>
-          {/* Enhanced Welcome Section */}
-          <div style={{
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            color: '#ffffff',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}>
-                <FontAwesomeIcon icon={faChartBar} style={{ fontSize: 28, color: '#fff' }} />
-              </div>
-              <div>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
-                }}>
-                  Welcome to the Admin Dashboard
-                </h2>
-                <p style={{
-                  margin: '6px 0 0 0',
-                  fontSize: '14px',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: '500',
-                }}>
-                  Manage your class scheduling system efficiently with real-time insights and analytics
-                </p>
-              </div>
-            </div>
-          </div>
-
+        <div className="dashboard-content" style={{ marginTop: '140px', padding: '0 20px 40px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>
+            Welcome to the Admin Dashboard
+          </h2>
+          <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+            Manage your class scheduling system efficiently with real-time insights and analytics
+          </p>
           {/* Quick Actions Section */}
           <div style={{
             display: 'grid',
@@ -284,9 +237,9 @@ const AdminDashboard = () => {
             <button
               onClick={() => navigate('/admin/schedule-management')}
               style={{
-                background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 50%, #f97316 100%)',
-                color: 'white',
-                border: 'none',
+                background: 'white',
+                color: '#0f2c63',
+                border: '2px solid #e2e8f0',
                 borderRadius: '14px',
                 padding: '18px 24px',
                 cursor: 'pointer',
@@ -295,21 +248,23 @@ const AdminDashboard = () => {
                 gap: '12px',
                 fontWeight: '600',
                 fontSize: '15px',
-                boxShadow: '0 4px 16px rgba(15, 44, 99, 0.2)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
                 transition: 'all 0.3s ease',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 44, 99, 0.3)';
+                e.currentTarget.style.borderColor = '#f97316';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(249, 115, 22, 0.15)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(15, 44, 99, 0.2)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
               }}
             >
-              <FontAwesomeIcon icon={faPlus} style={{ fontSize: '18px' }} />
+              <FontAwesomeIcon icon={faPlus} style={{ fontSize: '18px', color: '#0f2c63' }} />
               <span>New Schedule</span>
-              <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '12px', marginLeft: 'auto', opacity: 0.8 }} />
+              <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '12px', marginLeft: 'auto', opacity: 0.6 }} />
             </button>
             <button
               onClick={() => navigate('/admin/faculty-management')}

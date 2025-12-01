@@ -87,7 +87,13 @@ class ApiClient {
             case 409:
               // Conflict - Handle version conflict (MVCC) separately
               if (data?.code === 'VERSION_CONFLICT') {
-                this.handleError(`⚠️ Version Conflict: Resource was modified by another user. Please refresh and try again. (${data?.message || 'Conflict'})`);
+                // Create a custom error that components can catch
+                const versionError = new Error(data?.message || 'Version conflict detected');
+                versionError.isVersionConflict = true;
+                versionError.code = 'VERSION_CONFLICT';
+                versionError.response = error.response;
+                // Don't show toast here - let components handle it with modal
+                return Promise.reject(versionError);
               } else {
                 this.handleError(data?.message || 'Conflict: This resource already exists');
               }

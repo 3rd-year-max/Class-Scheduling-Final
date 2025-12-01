@@ -44,7 +44,7 @@ const Modal = ({ show, onClose, title, children, actions }) => {
       <div
         style={{
           position: "relative",
-          background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+          background: "#ffffff",
           padding: 24,
           borderRadius: 16,
           minWidth: 360,
@@ -73,11 +73,7 @@ const Modal = ({ show, onClose, title, children, actions }) => {
             marginBottom: 18, 
             color: '#0f2c63', 
             fontSize: '22px', 
-            fontWeight: '700',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            fontWeight: '700'
           }}>
             {title}
           </h2>
@@ -376,55 +372,16 @@ const FacultyManagement = () => {
 
 
   return (
-    <div className="dashboard-container" style={{ display: "flex", height: "100vh" }}>
+    <div className="dashboard-container" style={{ display: "flex", height: "100vh", background: '#fafafa' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#fafafa' }}>
         <Header title="Faculty Management" />
-        <div className="dashboard-content" style={{ marginTop: '140px' }}>
-          {/* Welcome Section */}
-          <div className="welcome-section" style={{ 
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, #0f2c63 0%, #1e3a72 20%, #2d4a81 40%, #ea580c 70%, #f97316 100%)',
-            padding: '20px 24px',
-            borderRadius: '16px',
-            boxShadow: '0 10px 40px rgba(15, 44, 99, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-10%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none'
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                padding: '12px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}>
-                <FontAwesomeIcon 
-                  icon={faChalkboardTeacher} 
-                  style={{ fontSize: 28, color: '#fff' }}
-                />
-              </div>
-              <div>
-                <h2 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: '700', textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)' }}>Faculty Management</h2>
-                <p style={{ margin: '6px 0 0 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', fontWeight: '500' }}>Manage instructors and faculty members efficiently</p>
-              </div>
-            </div>
-          </div>
-
+        <div className="dashboard-content" style={{ marginTop: '140px', background: '#fafafa' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#1f2937' }}>Faculty Management</h2>
+          <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>Manage instructors and faculty members efficiently</p>
           {/* Filters */}
           <div style={{
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            background: '#ffffff',
             padding: '16px 20px',
             borderRadius: '12px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
@@ -482,10 +439,10 @@ const FacultyManagement = () => {
                 onClick={() => setActiveTab("active")}
                 style={{ 
                   ...btnStyle(activeTab === "active" ? "#059669" : "transparent"),
-                  background: activeTab === "active" ? "linear-gradient(135deg, #059669 0%, #10b981 100%)" : "transparent",
+                  background: activeTab === "active" ? "#059669" : "transparent",
                   color: activeTab === "active" ? "#fff" : "#64748b",
                   transform: activeTab === "active" ? "scale(1.02)" : "scale(1)",
-                  boxShadow: activeTab === "active" ? "0 4px 12px rgba(5, 150, 105, 0.3)" : "none",
+                  boxShadow: activeTab === "active" ? "0 4px 12px rgba(5, 150, 105, 0.2)" : "none",
                   fontWeight: activeTab === "active" ? "700" : "600"
                 }}
                 onMouseEnter={(e) => {
@@ -507,10 +464,10 @@ const FacultyManagement = () => {
                 onClick={() => setActiveTab("pending")}
                 style={{ 
                   ...btnStyle(activeTab === "pending" ? "#d97706" : "transparent"),
-                  background: activeTab === "pending" ? "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)" : "transparent",
+                  background: activeTab === "pending" ? "#d97706" : "transparent",
                   color: activeTab === "pending" ? "#fff" : "#64748b",
                   transform: activeTab === "pending" ? "scale(1.02)" : "scale(1)",
-                  boxShadow: activeTab === "pending" ? "0 4px 12px rgba(217, 119, 6, 0.3)" : "none",
+                  boxShadow: activeTab === "pending" ? "0 4px 12px rgba(217, 119, 6, 0.2)" : "none",
                   fontWeight: activeTab === "pending" ? "700" : "600"
                 }}
                 onMouseEnter={(e) => {
@@ -532,10 +489,10 @@ const FacultyManagement = () => {
                 onClick={() => setActiveTab("archived")}
                 style={{ 
                   ...btnStyle(activeTab === "archived" ? "#b91c1c" : "transparent"),
-                  background: activeTab === "archived" ? "linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)" : "transparent",
+                  background: activeTab === "archived" ? "#b91c1c" : "transparent",
                   color: activeTab === "archived" ? "#fff" : "#64748b",
                   transform: activeTab === "archived" ? "scale(1.02)" : "scale(1)",
-                  boxShadow: activeTab === "archived" ? "0 4px 12px rgba(185, 28, 28, 0.3)" : "none",
+                  boxShadow: activeTab === "archived" ? "0 4px 12px rgba(185, 28, 28, 0.2)" : "none",
                   fontWeight: activeTab === "archived" ? "700" : "600"
                 }}
                 onMouseEnter={(e) => {
@@ -558,17 +515,19 @@ const FacultyManagement = () => {
               <button
                 style={{
                   ...btnStyle("#2563eb"),
-                  background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
+                  background: "#2563eb",
+                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)"
                 }}
                 onClick={() => setShowAddModal(true)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-3px)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.4)";
+                  e.currentTarget.style.background = "#1d4ed8";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.3)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                  e.currentTarget.style.background = "#2563eb";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.2)";
                 }}
               >
                 <FontAwesomeIcon icon={faPlus} /> Add Instructor
@@ -610,7 +569,7 @@ const FacultyManagement = () => {
             }}>
               <table style={{ width: "100%", borderCollapse: "collapse", background: "white", borderRadius: "16px", overflow: "hidden" }}>
                 <thead style={{ 
-                  background: "linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)", 
+                  background: "#0f2c63", 
                   color: "white",
                   boxShadow: "0 4px 12px rgba(15, 44, 99, 0.2)"
                 }}>
@@ -738,7 +697,7 @@ const FacultyManagement = () => {
                           {inst.instructorId && inst.instructorId.trim() !== "" ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               <span style={{
-                                background: "linear-gradient(135deg, #0f2c63 0%, #f97316 100%)",
+                                background: "#0f2c63",
                                 color: "white",
                                 padding: "4px 8px",
                                 borderRadius: "6px",
@@ -813,16 +772,18 @@ const FacultyManagement = () => {
                                 onClick={() => handleArchive(inst._id)}
                                 style={{
                                   ...btnStyle("#dc2626"),
-                                  background: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)",
-                                  boxShadow: "0 2px 8px rgba(220, 38, 38, 0.25)"
+                                  background: "#dc2626",
+                                  boxShadow: "0 2px 8px rgba(220, 38, 38, 0.2)"
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.transform = "scale(1.08)";
-                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(220, 38, 38, 0.35)";
+                                  e.currentTarget.style.background = "#b91c1c";
+                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(220, 38, 38, 0.3)";
                                 }}
                                 onMouseLeave={(e) => {
                                   e.currentTarget.style.transform = "scale(1)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(220, 38, 38, 0.25)";
+                                  e.currentTarget.style.background = "#dc2626";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(220, 38, 38, 0.2)";
                                 }}
                               >
                                 <FontAwesomeIcon icon={faTrash} /> Archive
@@ -834,16 +795,18 @@ const FacultyManagement = () => {
                                   onClick={() => handleRestore(inst._id)}
                                   style={{
                                     ...btnStyle("#10b981"),
-                                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                                    boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)"
+                                    background: "#10b981",
+                                    boxShadow: "0 2px 8px rgba(16, 185, 129, 0.2)"
                                   }}
                                   onMouseEnter={(e) => {
                                     e.currentTarget.style.transform = "scale(1.08)";
-                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.35)";
+                                    e.currentTarget.style.background = "#059669";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
                                   }}
                                   onMouseLeave={(e) => {
                                     e.currentTarget.style.transform = "scale(1)";
-                                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(16, 185, 129, 0.25)";
+                                    e.currentTarget.style.background = "#10b981";
+                                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(16, 185, 129, 0.2)";
                                   }}
                                 >
                                   <FontAwesomeIcon icon={faUserPlus} /> Restore
@@ -858,16 +821,18 @@ const FacultyManagement = () => {
                                 }}
                                 style={{
                                   ...btnStyle("#2563eb"),
-                                  background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-                                  boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)"
+                                  background: "#2563eb",
+                                  boxShadow: "0 2px 8px rgba(37, 99, 235, 0.2)"
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.transform = "scale(1.08)";
-                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.35)";
+                                  e.currentTarget.style.background = "#1d4ed8";
+                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
                                 }}
                                 onMouseLeave={(e) => {
                                   e.currentTarget.style.transform = "scale(1)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.25)";
+                                  e.currentTarget.style.background = "#2563eb";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.2)";
                                 }}
                               >
                                 <FontAwesomeIcon icon={faChalkboardTeacher} /> View Workload
@@ -896,18 +861,20 @@ const FacultyManagement = () => {
               onClick={() => setShowAddModal(false)} 
               style={{
                 ...btnStyle("#6b7280"),
-                background: "linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)",
+                background: "#6b7280",
                 boxShadow: "0 4px 12px rgba(107, 114, 128, 0.2)"
               }} 
               disabled={addLoading}
               onMouseEnter={(e) => {
                 if (!addLoading) {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(107, 114, 128, 0.3)";
+                  e.currentTarget.style.background = "#4b5563";
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(107, 114, 128, 0.25)";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.background = "#6b7280";
                 e.currentTarget.style.boxShadow = "0 4px 12px rgba(107, 114, 128, 0.2)";
               }}
             >
@@ -919,20 +886,22 @@ const FacultyManagement = () => {
               disabled={addLoading}
               style={{
                 ...btnStyle("#2563eb"),
-                background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+                background: "#2563eb",
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
                 opacity: addLoading ? 0.7 : 1,
                 cursor: addLoading ? "not-allowed" : "pointer",
               }}
               onMouseEnter={(e) => {
                 if (!addLoading) {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.4)";
+                  e.currentTarget.style.background = "#1d4ed8";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.3)";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                e.currentTarget.style.background = "#2563eb";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.2)";
               }}
             >
               {addLoading ? "Sending..." : "Send Registration Link"}
@@ -1033,17 +1002,19 @@ const FacultyManagement = () => {
               disabled={completeRegLoading} 
               style={{
                 ...btnStyle("#6b7280"),
-                background: "linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)",
+                background: "#6b7280",
                 boxShadow: "0 4px 12px rgba(107, 114, 128, 0.2)"
               }}
               onMouseEnter={(e) => {
                 if (!completeRegLoading) {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(107, 114, 128, 0.3)";
+                  e.currentTarget.style.background = "#4b5563";
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(107, 114, 128, 0.25)";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.background = "#6b7280";
                 e.currentTarget.style.boxShadow = "0 4px 12px rgba(107, 114, 128, 0.2)";
               }}
             >
@@ -1055,19 +1026,21 @@ const FacultyManagement = () => {
               disabled={completeRegLoading}
               style={{ 
                 ...btnStyle("#10b981"), 
-                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                background: "#10b981",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
                 opacity: completeRegLoading ? 0.7 : 1 
               }}
               onMouseEnter={(e) => {
                 if (!completeRegLoading) {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(16, 185, 129, 0.4)";
+                  e.currentTarget.style.background = "#059669";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(16, 185, 129, 0.3)";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                e.currentTarget.style.background = "#10b981";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.2)";
               }}
             >
               {completeRegLoading ? "Completing..." : "Complete Registration"}
