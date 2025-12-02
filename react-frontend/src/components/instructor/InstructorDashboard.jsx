@@ -342,55 +342,133 @@ const InstructorDashboard = () => {
       showToast(data.message, 'info');
     });
 
-    // Real-time schedule creation
+    // Real-time schedule creation (global event - check if it belongs to this instructor)
     socket.on('schedule-created', (data) => {
-      console.log('📢 New schedule created:', data);
-      // Only add if it doesn't already exist (prevent duplicates)
-      setAllSchedules(prev => {
-        const exists = prev.some(s => s._id === data.schedule?._id);
-        if (exists) return prev; // Already exists, don't add again
-        return [...prev, data.schedule];
-      });
-      showToast('✓ New schedule added', 'success', 2000);
+      console.log('📢 New schedule created (global):', data);
+      if (!data.schedule) return;
+      
+      // Check if this schedule belongs to the current instructor
+      const scheduleEmail = data.schedule.instructorEmail?.toLowerCase()?.trim();
+      const currentEmail = userEmail?.toLowerCase()?.trim();
+      const scheduleInstructor = data.schedule.instructor?.toLowerCase()?.trim();
+      const currentInstructor = [instructorData.firstname, instructorData.lastname]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+        .toLowerCase();
+      
+      const belongsToInstructor = 
+        (scheduleEmail && currentEmail && scheduleEmail === currentEmail) ||
+        (scheduleInstructor && currentInstructor && scheduleInstructor === currentInstructor);
+      
+      if (belongsToInstructor) {
+        console.log('✅ Schedule belongs to this instructor, adding to state');
+        setAllSchedules(prev => {
+          const exists = prev.some(s => s._id === data.schedule?._id);
+          if (exists) {
+            console.log('Schedule already exists, skipping');
+            return prev;
+          }
+          return [...prev, data.schedule];
+        });
+        showToast('✓ New schedule added', 'success', 2000);
+      } else {
+        console.log('❌ Schedule does not belong to this instructor, ignoring');
+      }
     });
 
     // Real-time schedule updates
     socket.on('schedule-updated', (data) => {
       console.log('📢 Schedule updated:', data);
-      // Update the schedule in state without full refresh
-      setAllSchedules(prev => 
-        prev.map(s => s._id === data.schedule._id ? data.schedule : s)
-      );
-      showToast('✓ Schedule updated', 'success', 2000);
+      // Only update if it belongs to this instructor
+      if (data.schedule && (
+        data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase() ||
+        (data.schedule.instructor && [instructorData.firstname, instructorData.lastname].filter(Boolean).join(' ').trim().toLowerCase() === data.schedule.instructor?.toLowerCase())
+      )) {
+        setAllSchedules(prev => 
+          prev.map(s => s._id === data.schedule._id ? data.schedule : s)
+        );
+        showToast('✓ Schedule updated', 'success', 2000);
+      }
     });
 
     // Real-time schedule deletions
     socket.on('schedule-deleted', (data) => {
       console.log('📢 Schedule deleted:', data);
-      // Remove the schedule from state
-      setAllSchedules(prev => prev.filter(s => s._id !== data.scheduleId));
-      showToast('✓ Schedule removed', 'info', 2000);
+      // Only remove if it belongs to this instructor
+      if (data.schedule && (
+        data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase() ||
+        (data.schedule.instructor && [instructorData.firstname, instructorData.lastname].filter(Boolean).join(' ').trim().toLowerCase() === data.schedule.instructor?.toLowerCase())
+      )) {
+        setAllSchedules(prev => prev.filter(s => s._id !== data.scheduleId));
+        showToast('✓ Schedule removed', 'info', 2000);
+      }
     });
 
     // Instructor-specific updates (only affects this instructor)
-    socket.on(`schedule-update-${userEmail}`, (data) => {
-      console.log('📢 Your schedule changed:', data);
-      if (data.action === 'created') {
-        // Only add if it doesn't already exist (prevent duplicates)
-        setAllSchedules(prev => {
-          const exists = prev.some(s => s._id === data.schedule?._id);
-          if (exists) return prev; // Already exists, don't add again
-          return [...prev, data.schedule];
+    // Listen to multiple possible channel formats to handle email variations
+    if (userEmail) {
+      const normalizedEmail = userEmail.toLowerCase().trim();
+      const instructorChannel = `schedule-update-${normalizedEmail}`;
+      
+      socket.on(instructorChannel, (data) => {
+        console.log('📢 Your schedule changed (instructor-specific channel):', data);
+        if (data.action === 'created' && data.schedule) {
+          // Only add if it doesn't already exist (prevent duplicates)
+          setAllSchedules(prev => {
+            const exists = prev.some(s => s._id === data.schedule?._id);
+            if (exists) {
+              console.log('Schedule already exists, skipping:', data.schedule._id);
+              return prev;
+            }
+            console.log('✅ Adding new schedule via instructor-specific channel:', data.schedule);
+            return [...prev, data.schedule];
+          });
+          showToast('✓ New schedule added', 'success', 2000);
+        } else if (data.action === 'updated' && data.schedule) {
+          setAllSchedules(prev => 
+            prev.map(s => s._id === data.schedule._id ? data.schedule : s)
+          );
+          showToast('✓ Schedule updated', 'success', 2000);
+        } else if (data.action === 'deleted') {
+          setAllSchedules(prev => prev.filter(s => s._id !== data.scheduleId));
+          showToast('✓ Schedule removed', 'info', 2000);
+        } else if (data.action === 'archived') {
+          setAllSchedules(prev => prev.filter(s => s._id !== data.schedule?._id));
+          showToast('✓ Schedule archived', 'info', 2000);
+        } else if (data.action === 'restored' && data.schedule) {
+          setAllSchedules(prev => {
+            const exists = prev.some(s => s._id === data.schedule?._id);
+            return exists ? prev : [...prev, data.schedule];
+          });
+          showToast('✓ Schedule restored', 'success', 2000);
+        }
+      });
+      
+      // Also listen to the non-normalized version as a fallback
+      if (userEmail !== normalizedEmail) {
+        socket.on(`schedule-update-${userEmail}`, (data) => {
+          console.log('📢 Your schedule changed (fallback channel):', data);
+          if (data.action === 'created' && data.schedule) {
+            setAllSchedules(prev => {
+              const exists = prev.some(s => s._id === data.schedule?._id);
+              if (exists) return prev;
+              console.log('✅ Adding new schedule via fallback channel:', data.schedule);
+              return [...prev, data.schedule];
+            });
+            showToast('✓ New schedule added', 'success', 2000);
+          } else if (data.action === 'updated' && data.schedule) {
+            setAllSchedules(prev => 
+              prev.map(s => s._id === data.schedule._id ? data.schedule : s)
+            );
+            showToast('✓ Schedule updated', 'success', 2000);
+          } else if (data.action === 'deleted') {
+            setAllSchedules(prev => prev.filter(s => s._id !== data.scheduleId));
+            showToast('✓ Schedule removed', 'info', 2000);
+          }
         });
-      } else if (data.action === 'updated') {
-        setAllSchedules(prev => 
-          prev.map(s => s._id === data.schedule._id ? data.schedule : s)
-        );
-      } else if (data.action === 'deleted') {
-        setAllSchedules(prev => prev.filter(s => s._id !== data.scheduleId));
       }
-      showToast(`✓ Your schedule ${data.action}`, 'success', 2000);
-    });
+    }
 
     // Real-time instructor notifications
     socket.on(`notification-${userEmail}`, (data) => {
@@ -419,7 +497,7 @@ const InstructorDashboard = () => {
     return () => {
       socket.disconnect();
     };
-  }, [userEmail, showToast]);
+  }, [userEmail, showToast, instructorData.firstname, instructorData.lastname]);
 
   if (!userEmail) {
     return <p>Loading user information...</p>;

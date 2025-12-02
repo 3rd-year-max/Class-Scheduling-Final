@@ -11,6 +11,8 @@ import { verifyToken } from "../middleware/authMiddleware.js";
 import { logActivity } from "../utils/activityLogger.js";
 import Instructor from "../models/Instructor.js";
 import Schedule from "../models/Schedule.js";
+import Counter from "../models/Counter.js";
+import bcrypt from "bcrypt";
 import { withRetry, MVCCTransaction } from "../middleware/mvccTransaction.js";
 import { updateInstructorWithConflictResolution, updateWithVersionControl } from "../utils/mvccManager.js";
 import { listCalendarEvents, isGoogleCalendarConfigured } from "../services/googleCalendarService.js";
@@ -167,12 +169,12 @@ router.get('/', async (req, res) => {
     const query = {};
     // By default, exclude archived instructors unless explicitly requested
     if (showArchived !== 'true') {
-      query.archived = { $ne: true };
+      query.status = { $ne: 'archived' }; // Exclude archived instructors
     }
     
     // Return instructors in the legacy shape expected by the frontend
     const instructors = await Instructor.find(query)
-      .select('instructorId firstname lastname email contact department status archived createdAt updatedAt _id __v')
+      .select('instructorId firstname lastname email contact department status createdAt updatedAt _id __v')
       .sort({ status: 1, lastname: 1, firstname: 1 })
       .lean();
 
@@ -192,7 +194,7 @@ router.get('/profile/by-email/:email', async (req, res) => {
   try {
     const emailParam = req.params.email;
     const instructor = await Instructor.findOne({ email: { $regex: new RegExp(`^${emailParam}$`, 'i') } })
-      .select('instructorId firstname lastname email contact department image status archived createdAt updatedAt _id __v')
+      .select('instructorId firstname lastname email contact department image status createdAt updatedAt _id __v')
       .lean();
 
     if (!instructor) return res.status(404).json({ success: false, message: 'Instructor not found' });
@@ -217,7 +219,7 @@ router.get('/profile/me', async (req, res) => {
     }
 
     const instructor = await Instructor.findById(userId)
-      .select('instructorId firstname lastname email contact department image status archived createdAt updatedAt _id __v')
+      .select('instructorId firstname lastname email contact department image status createdAt updatedAt _id __v')
       .lean();
 
     if (!instructor) {
@@ -928,6 +930,85 @@ router.put('/:id', async (req, res) => {
     if (error.message?.includes('already in use') || error.message?.includes('Email')) return res.status(409).json({ success: false, message: error.message, code: 'EMAIL_CONFLICT' });
     console.error('Compatibility instructor update error:', error);
     return res.status(500).json({ success: false, message: 'Server error updating instructor', error: error.message });
+  }
+});
+
+// Helper function to get next sequence value
+async function getNextSequence(name) {
+  const counter = await Counter.findByIdAndUpdate(
+    name,
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.seq;
+}
+
+/**
+ * POST /api/instructors/complete-registration
+ * Complete instructor registration (public endpoint, no auth required)
+ */
+router.post("/complete-registration", async (req, res) => {
+  try {
+    const { email, firstname, lastname, contact, department, password } = req.body;
+    if (!email || !firstname || !lastname || !contact || !department || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: "All registration fields are required." 
+      });
+    }
+
+    // Find instructor by email who is currently pending
+    const instructor = await Instructor.findOne({ email: email.trim().toLowerCase(), status: 'pending' });
+
+    if (!instructor) {
+      return res.status(404).json({ 
+        success: false,
+        message: "No pending registration found for this email." 
+      });
+    }
+
+    // Update instructor's details and mark as active
+    // Ensure they have an instructorID
+    if (!instructor.instructorId || instructor.instructorId.trim() === "") {
+      instructor.instructorId = await getNextSequence("instructorId");
+    }
+    instructor.firstname = firstname;
+    instructor.lastname = lastname;
+    instructor.contact = contact;
+    instructor.department = department;
+    instructor.password = await bcrypt.hash(password, 10);
+    instructor.status = "active";  // Automatically activate here
+    await instructor.save();
+
+    // Log activity
+    await logActivity({
+      type: 'instructor-registration-completed',
+      message: `Instructor ${firstname} ${lastname} completed registration`,
+      source: 'admin',
+      link: '/admin/faculty-management',
+      meta: { instructorEmail: email },
+      io: req.io
+    });
+
+    res.json({
+      success: true,
+      message: "Registration completed successfully and account activated.",
+      instructor: {
+        id: instructor._id,
+        firstname: instructor.firstname,
+        lastname: instructor.lastname,
+        email: instructor.email,
+        contact: instructor.contact,
+        department: instructor.department,
+        status: instructor.status,
+      },
+    });
+  } catch (err) {
+    console.error('Error completing registration:', err);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error during registration completion." 
+    });
   }
 });
 

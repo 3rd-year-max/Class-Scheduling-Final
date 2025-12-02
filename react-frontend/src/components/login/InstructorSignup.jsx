@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faEnvelope, faCalendarAlt, faUserPlus, faLock, faPhone, faBuilding, faCheckCircle, faTimes, faKey, faRefresh, faEye, faEyeSlash, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { useToast } from '../common/ToastProvider.jsx';
 
 const InstructorSignup = () => {
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     firstname: '',
@@ -136,9 +138,10 @@ const InstructorSignup = () => {
     if (formData.password) {
       try {
         await navigator.clipboard.writeText(formData.password);
-        alert('Password copied to clipboard!');
+        showToast('Password copied to clipboard!', 'success', 2000);
       } catch (err) {
         console.error('Failed to copy password:', err);
+        showToast('Failed to copy password to clipboard', 'error', 2000);
       }
     }
   };
@@ -196,6 +199,7 @@ const InstructorSignup = () => {
         await storeCredentials();
         
         setShowSuccessModal(true);
+        showToast('Registration completed successfully!', 'success', 3000);
 
         // Auto redirect to login after 3 seconds
         setTimeout(() => {
@@ -203,11 +207,11 @@ const InstructorSignup = () => {
         }, 3000);
       } else {
         // Display backend validation or error messages gracefully
-        alert(data.message || 'Registration failed. Please try again.');
+        showToast(data.message || 'Registration failed. Please try again.', 'error', 4000);
       }
     } catch (err) {
       console.error('Error during registration:', err);
-      alert('Something went wrong. Please check your connection and try again.');
+      showToast('Something went wrong. Please check your connection and try again.', 'error', 4000);
     } finally {
       setLoading(false);
     }

@@ -411,14 +411,6 @@ const InstructorLogin = () => {
               <span>Back to User Selection</span>
             </Link>
           </form>
-
-          <p className="signup-text2" style={{
-            color: "#666",
-            fontSize: "14px",
-            marginBottom: "10px"
-          }}>
-            Don't have an account? <Link to="/instructor/signup" style={{ color: "#f97316", textDecoration: "none", fontWeight: "600" }}>Sign up here!</Link>
-          </p>
           
           <Link 
             to="/forgot-password?type=instructor"

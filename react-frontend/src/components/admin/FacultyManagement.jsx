@@ -307,24 +307,46 @@ const FacultyManagement = () => {
     e.preventDefault();
     setAddLoading(true);
 
+    // Store email before clearing for toast message
+    const emailToSend = addEmail;
+
     apiClient.post("/api/registration/send-registration", {
       email: addEmail,
       department: addDepartment,
     })
       .then(async (res) => {
         const data = res.data;
-        if (!data.success) {
+        
+        // Handle different response formats
+        // Format 1: { success: true, ... }
+        // Format 2: { results: [...], total: ... }
+        // Format 3: { message: "...", instructorId: ... }
+        
+        if (data.success === false || (data.error && !data.success)) {
           throw new Error(data.error || data.message || "Failed to send registration email");
         }
-        return data;
-      })
-      .then((data) => {
+        
+        // Check if results array exists and has success status
+        if (data.results && Array.isArray(data.results)) {
+          const failedResults = data.results.filter(r => r.status === 'failed');
+          if (failedResults.length > 0) {
+            throw new Error(failedResults[0].error || "Failed to send registration email");
+          }
+        }
+        
+        // Close modal and clear fields immediately on success
         setShowAddModal(false);
         setAddEmail("");
         setAddDepartment("");
+        
+        // Show success message
         const instructorIdMsg = data.instructorId ? ` (Instructor ID: ${data.instructorId})` : '';
-        showToast(`Registration link sent successfully to ${addEmail}!${instructorIdMsg}`, 'success');
+        showToast(`Registration link sent successfully to ${emailToSend}!${instructorIdMsg}`, 'success');
+        
+        // Refresh instructor list
         fetchInstructors();
+        
+        return data;
       })
       .catch((err) => {
         showToast(err.message || "Error sending registration email. Please try again.", 'error');
@@ -813,7 +835,7 @@ const FacultyManagement = () => {
                                 </button>
                               </>
                             )}
-                            {inst.status !== "archived" && (
+                            {inst.status === "active" && (
                               <button
                                 onClick={() => {
                                   const url = `/admin/instructor/${inst._id}/workload`;

@@ -18,9 +18,12 @@ import XLSX from 'xlsx-js-style';
 import axios from 'axios';
 import apiClient from '../../services/apiClient.js';
 import { faCode } from '@fortawesome/free-solid-svg-icons';
+import { io } from 'socket.io-client';
+import { useToast } from '../common/ToastProvider.jsx';
 
 const InstructorReports = () => {
   const { userEmail } = useContext(AuthContext);
+  const { showToast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [instructorData, setInstructorData] = useState({
@@ -227,6 +230,126 @@ const InstructorReports = () => {
     };
     fetchInstructorData();
   }, [userEmail, normalizeScheduleItem]);
+
+  // Setup Socket.io for real-time schedule updates
+  useEffect(() => {
+    if (!userEmail) return;
+
+    const socket = io(process.env.REACT_APP_API_BASE || 'http://localhost:5000', { autoConnect: true });
+
+    socket.on('connect', () => {
+      console.log('✅ Connected to server for schedule updates (Reports)');
+      // Subscribe to instructor-specific updates
+      if (userEmail) {
+        socket.emit('join-instructor-channel', { email: userEmail });
+      }
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket.io connection error:', error);
+    });
+
+    // Real-time schedule creation
+    socket.on('schedule-created', (data) => {
+      console.log('📢 New schedule created (Reports):', data);
+      if (data.schedule && data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase()) {
+        setInstructorSchedule(prev => {
+          const exists = prev.some(s => s._id === data.schedule?._id);
+          if (exists) return prev;
+          const normalized = normalizeScheduleItem(data.schedule);
+          return normalized ? [...prev, normalized] : prev;
+        });
+        showToast('✓ New schedule added', 'success', 2000);
+      }
+    });
+
+    // Real-time schedule updates
+    socket.on('schedule-updated', (data) => {
+      console.log('📢 Schedule updated (Reports):', data);
+      if (data.schedule && data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase()) {
+        setInstructorSchedule(prev => {
+          const normalized = normalizeScheduleItem(data.schedule);
+          return normalized 
+            ? prev.map(s => s._id === data.schedule._id ? normalized : s)
+            : prev;
+        });
+        showToast('✓ Schedule updated', 'success', 2000);
+      }
+    });
+
+    // Real-time schedule deletions
+    socket.on('schedule-deleted', (data) => {
+      console.log('📢 Schedule deleted (Reports):', data);
+      if (data.schedule && data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase()) {
+        setInstructorSchedule(prev => prev.filter(s => s._id !== data.scheduleId));
+        showToast('✓ Schedule removed', 'info', 2000);
+      }
+    });
+
+    // Real-time schedule archive/restore
+    socket.on('schedule-archived', (data) => {
+      console.log('📢 Schedule archived (Reports):', data);
+      if (data.schedule && data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase()) {
+        setInstructorSchedule(prev => prev.filter(s => s._id !== data.schedule._id));
+        showToast('✓ Schedule archived', 'info', 2000);
+      }
+    });
+
+    socket.on('schedule-restored', (data) => {
+      console.log('📢 Schedule restored (Reports):', data);
+      if (data.schedule && data.schedule.instructorEmail?.toLowerCase() === userEmail?.toLowerCase()) {
+        const normalized = normalizeScheduleItem(data.schedule);
+        if (normalized) {
+          setInstructorSchedule(prev => {
+            const exists = prev.some(s => s._id === normalized._id);
+            return exists ? prev : [...prev, normalized];
+          });
+          showToast('✓ Schedule restored', 'success', 2000);
+        }
+      }
+    });
+
+    // Instructor-specific updates (only affects this instructor)
+    socket.on(`schedule-update-${userEmail}`, (data) => {
+      console.log('📢 Your schedule changed (Reports):', data);
+      if (data.action === 'created') {
+        setInstructorSchedule(prev => {
+          const exists = prev.some(s => s._id === data.schedule?._id);
+          if (exists) return prev;
+          const normalized = normalizeScheduleItem(data.schedule);
+          return normalized ? [...prev, normalized] : prev;
+        });
+      } else if (data.action === 'updated') {
+        setInstructorSchedule(prev => {
+          const normalized = normalizeScheduleItem(data.schedule);
+          return normalized 
+            ? prev.map(s => s._id === data.schedule._id ? normalized : s)
+            : prev;
+        });
+      } else if (data.action === 'deleted') {
+        setInstructorSchedule(prev => prev.filter(s => s._id !== data.scheduleId));
+      } else if (data.action === 'archived') {
+        setInstructorSchedule(prev => prev.filter(s => s._id !== data.schedule?._id));
+      } else if (data.action === 'restored') {
+        const normalized = normalizeScheduleItem(data.schedule);
+        if (normalized) {
+          setInstructorSchedule(prev => {
+            const exists = prev.some(s => s._id === normalized._id);
+            return exists ? prev : [...prev, normalized];
+          });
+        }
+      }
+      showToast(`✓ Your schedule ${data.action}`, 'success', 2000);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from server (Reports)');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [userEmail, normalizeScheduleItem, showToast]);
 
   // Utility to get day order for sorting
   const getDayOrder = (day) => {

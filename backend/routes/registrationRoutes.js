@@ -74,11 +74,24 @@ router.post('/send-registration', registerLimiter, async (req, res) => {
   let results = [];
   for (let emailAddr of emails) {
     try {
-      let existingInstructor = await Instructor.findOne({ email: emailAddr });
+      // Check for existing instructor, excluding archived ones (archived instructors are treated as non-existent)
+      let existingInstructor = await Instructor.findOne({ 
+        email: emailAddr,
+        status: { $ne: 'archived' } // Exclude archived instructors
+      });
+      
       if (existingInstructor && existingInstructor.status === 'active') {
         results.push({ email: emailAddr, status: 'failed', error: 'Already registered and active.' });
         continue;
       }
+      
+      // If there's an archived instructor with this email, delete it to allow new registration
+      const archivedInstructor = await Instructor.findOne({ email: emailAddr, status: 'archived' });
+      if (archivedInstructor) {
+        await Instructor.findByIdAndDelete(archivedInstructor._id);
+        console.log(`Deleted archived instructor with email ${emailAddr} to allow new registration`);
+      }
+      
       if (!existingInstructor) {
         const newInstructor = new Instructor({ email: emailAddr, department, status: 'pending' });
         await newInstructor.save();
@@ -87,12 +100,37 @@ router.post('/send-registration', registerLimiter, async (req, res) => {
         existingInstructor.status = 'pending';
         await existingInstructor.save();
       }
-      const registrationLink = `http://localhost:3000/instructor/signup?email=${encodeURIComponent(emailAddr)}&department=${encodeURIComponent(department)}`;
+      const registrationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/instructor/signup?email=${encodeURIComponent(emailAddr)}&department=${encodeURIComponent(department)}`;
       const mailOptions = {
         from: `"Class Scheduling System" <${process.env.EMAIL_USER}>`,
         to: emailAddr,
         subject: 'Complete Your Instructor Registration',
-        html: `Registration link: <a href="${registrationLink}">${registrationLink}</a>`
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #0f2c63;">Complete Your Instructor Registration</h2>
+          <p>You have been invited to join the Class Scheduling System as an instructor.</p>
+          <p>Click the button below to complete your registration:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${registrationLink}" 
+               style="background: linear-gradient(135deg, #0f2c63 0%, #f97316 100%); 
+                      color: white; 
+                      padding: 15px 30px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      display: inline-block;
+                      font-weight: 600;">
+              Complete Registration
+            </a>
+          </div>
+          <p style="color: #666; font-size: 14px;">
+            Or copy and paste this link into your browser:<br>
+            <a href="${registrationLink}" style="color: #0f2c63; word-break: break-all;">${registrationLink}</a>
+          </p>
+          <p style="color: #666; font-size: 14px;">
+            Please complete your registration to access the system. If you didn't expect this invitation, please ignore this email.
+          </p>
+        </div>
+      `
       };
       await transporter.sendMail(mailOptions);
 

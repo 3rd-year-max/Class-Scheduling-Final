@@ -17,6 +17,7 @@ import {
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, isGoogleCalendarConfigured } from '../services/googleCalendarService.js';
 import { successResponse, errorResponse, validationErrorResponse, notFoundResponse, conflictResponse, versionConflictResponse, serverErrorResponse } from '../utils/responseHelpers.js';
 import logger from '../utils/logger.js';
+import { logActivity } from '../utils/activityLogger.js';
 
 const router = express.Router();
 
@@ -220,9 +221,10 @@ router.post("/create-mvcc", async (req, res) => {
           timestamp: new Date(),
           userId: req.userId || 'system'
         });
-        // Also emit for specific instructor
+        // Also emit for specific instructor (normalize email to lowercase)
         if (newSchedule.instructorEmail) {
-          req.io.emit(`schedule-update-${newSchedule.instructorEmail}`, {
+          const normalizedEmail = newSchedule.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
             action: 'created',
             schedule: newSchedule,
             timestamp: new Date()
@@ -232,6 +234,27 @@ router.post("/create-mvcc", async (req, res) => {
     }
 
     logger.info('Schedule created successfully', { scheduleId: newSchedule._id, course, year, section });
+    
+    // Log activity
+    await logActivity({
+      type: 'schedule-created',
+      message: `Schedule created: ${newSchedule.subject} for ${newSchedule.course} ${newSchedule.year} ${newSchedule.section} - ${newSchedule.day} at ${newSchedule.time} in ${newSchedule.room} (Instructor: ${newSchedule.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${newSchedule.course}/${newSchedule.year}/${newSchedule.section}`,
+      meta: {
+        scheduleId: newSchedule._id,
+        course: newSchedule.course,
+        year: newSchedule.year,
+        section: newSchedule.section,
+        subject: newSchedule.subject,
+        instructor: newSchedule.instructor,
+        instructorEmail: newSchedule.instructorEmail,
+        day: newSchedule.day,
+        time: newSchedule.time,
+        room: newSchedule.room
+      },
+      io: req.io
+    });
     
     return successResponse(res, 201, "Schedule created with MVCC protection", {
       schedule: newSchedule,
@@ -301,6 +324,51 @@ router.put("/:id/update-mvcc", async (req, res) => {
 
     transaction.addOperation(id, 'update', updatedSchedule.__v, updatedSchedule);
     const txnRecord = transaction.commit();
+
+    // Broadcast real-time update (non-blocking)
+    if (req.io) {
+      setImmediate(() => {
+        req.io.emit('schedule-updated', {
+          action: 'updated',
+          schedule: updatedSchedule,
+          timestamp: new Date(),
+          userId: req.userId || 'system'
+        });
+        // Also emit for specific instructor
+        if (updatedSchedule.instructorEmail) {
+          req.io.emit(`schedule-update-${updatedSchedule.instructorEmail}`, {
+            action: 'updated',
+            schedule: updatedSchedule,
+            timestamp: new Date()
+          });
+        }
+      });
+    }
+
+    // Log activity
+    const changeSummary = changes.length > 0 
+      ? ` (Changes: ${changes.map(c => `${c.field}: ${c.oldValue} → ${c.newValue}`).join(', ')})`
+      : '';
+    await logActivity({
+      type: 'schedule-updated',
+      message: `Schedule updated: ${updatedSchedule.subject} for ${updatedSchedule.course} ${updatedSchedule.year} ${updatedSchedule.section}${changeSummary} (Instructor: ${updatedSchedule.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${updatedSchedule.course}/${updatedSchedule.year}/${updatedSchedule.section}`,
+      meta: {
+        scheduleId: updatedSchedule._id,
+        course: updatedSchedule.course,
+        year: updatedSchedule.year,
+        section: updatedSchedule.section,
+        subject: updatedSchedule.subject,
+        instructor: updatedSchedule.instructor,
+        instructorEmail: updatedSchedule.instructorEmail,
+        day: updatedSchedule.day,
+        time: updatedSchedule.time,
+        room: updatedSchedule.room,
+        changes: changes
+      },
+      io: req.io
+    });
 
     res.json({
       success: true,
@@ -586,9 +654,10 @@ router.post('/create', async (req, res) => {
           timestamp: new Date(),
           userId: req.userId || 'system'
         });
-        // Also emit for specific instructor
+        // Also emit for specific instructor (normalize email to lowercase)
         if (newSchedule.instructorEmail) {
-          req.io.emit(`schedule-update-${newSchedule.instructorEmail}`, {
+          const normalizedEmail = newSchedule.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
             action: 'created',
             schedule: newSchedule,
             timestamp: new Date()
@@ -596,6 +665,27 @@ router.post('/create', async (req, res) => {
         }
       });
     }
+
+    // Log activity
+    await logActivity({
+      type: 'schedule-created',
+      message: `Schedule created: ${newSchedule.subject} for ${newSchedule.course} ${newSchedule.year} ${newSchedule.section} - ${newSchedule.day} at ${newSchedule.time} in ${newSchedule.room} (Instructor: ${newSchedule.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${newSchedule.course}/${newSchedule.year}/${newSchedule.section}`,
+      meta: {
+        scheduleId: newSchedule._id,
+        course: newSchedule.course,
+        year: newSchedule.year,
+        section: newSchedule.section,
+        subject: newSchedule.subject,
+        instructor: newSchedule.instructor,
+        instructorEmail: newSchedule.instructorEmail,
+        day: newSchedule.day,
+        time: newSchedule.time,
+        room: newSchedule.room
+      },
+      io: req.io
+    });
 
     res.status(201).json({ success: true, message: 'Schedule created', schedule: newSchedule, transaction: txnRecord });
   } catch (error) {
@@ -660,9 +750,10 @@ router.put('/:id', async (req, res) => {
             timestamp: new Date(),
             userId: req.userId || 'system'
           });
-          // Also emit for specific instructor
+          // Also emit for specific instructor (normalize email to lowercase)
           if (updatedSchedule.instructorEmail) {
-            req.io.emit(`schedule-update-${updatedSchedule.instructorEmail}`, {
+            const normalizedEmail = updatedSchedule.instructorEmail.toLowerCase().trim();
+            req.io.emit(`schedule-update-${normalizedEmail}`, {
               action: 'updated',
               schedule: updatedSchedule,
               timestamp: new Date()
@@ -670,6 +761,27 @@ router.put('/:id', async (req, res) => {
           }
         });
       }
+
+      // Log activity
+      await logActivity({
+        type: 'schedule-updated',
+        message: `Schedule updated: ${updatedSchedule.subject} for ${updatedSchedule.course} ${updatedSchedule.year} ${updatedSchedule.section} - ${updatedSchedule.day} at ${updatedSchedule.time} in ${updatedSchedule.room} (Instructor: ${updatedSchedule.instructor})`,
+        source: 'admin',
+        link: `/admin/schedule-management/${updatedSchedule.course}/${updatedSchedule.year}/${updatedSchedule.section}`,
+        meta: {
+          scheduleId: updatedSchedule._id,
+          course: updatedSchedule.course,
+          year: updatedSchedule.year,
+          section: updatedSchedule.section,
+          subject: updatedSchedule.subject,
+          instructor: updatedSchedule.instructor,
+          instructorEmail: updatedSchedule.instructorEmail,
+          day: updatedSchedule.day,
+          time: updatedSchedule.time,
+          room: updatedSchedule.room
+        },
+        io: req.io
+      });
 
       res.json({ success: true, message: 'Schedule updated', schedule: updatedSchedule, transaction: txnRecord });
       return;
@@ -703,9 +815,10 @@ router.put('/:id', async (req, res) => {
           timestamp: new Date(),
           userId: req.userId || 'system'
         });
-        // Also emit for specific instructor
+        // Also emit for specific instructor (normalize email to lowercase)
         if (schedule.instructorEmail) {
-          req.io.emit(`schedule-update-${schedule.instructorEmail}`, {
+          const normalizedEmail = schedule.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
             action: 'updated',
             schedule: schedule,
             timestamp: new Date()
@@ -713,6 +826,27 @@ router.put('/:id', async (req, res) => {
         }
       });
     }
+
+    // Log activity
+    await logActivity({
+      type: 'schedule-updated',
+      message: `Schedule updated: ${schedule.subject} for ${schedule.course} ${schedule.year} ${schedule.section} - ${schedule.day} at ${schedule.time} in ${schedule.room} (Instructor: ${schedule.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${schedule.course}/${schedule.year}/${schedule.section}`,
+      meta: {
+        scheduleId: schedule._id,
+        course: schedule.course,
+        year: schedule.year,
+        section: schedule.section,
+        subject: schedule.subject,
+        instructor: schedule.instructor,
+        instructorEmail: schedule.instructorEmail,
+        day: schedule.day,
+        time: schedule.time,
+        room: schedule.room
+      },
+      io: req.io
+    });
 
     res.json({ success: true, message: 'Schedule updated (legacy)', schedule });
   } catch (error) {
@@ -889,28 +1023,50 @@ router.delete('/:id', async (req, res) => {
         }
       }
       
-      // Broadcast real-time update (non-blocking)
-      if (req.io) {
-        setImmediate(() => {
-          req.io.emit('schedule-deleted', {
+    // Broadcast real-time update (non-blocking)
+    if (req.io) {
+      setImmediate(() => {
+        req.io.emit('schedule-deleted', {
+          action: 'deleted',
+          scheduleId: deleted._id,
+          schedule: deleted,
+          timestamp: new Date(),
+          userId: req.userId || 'system'
+        });
+        // Also emit for specific instructor (normalize email to lowercase)
+        if (deleted.instructorEmail) {
+          const normalizedEmail = deleted.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
             action: 'deleted',
             scheduleId: deleted._id,
-            schedule: deleted,
-            timestamp: new Date(),
-            userId: req.userId || 'system'
+            timestamp: new Date()
           });
-          // Also emit for specific instructor
-          if (deleted.instructorEmail) {
-            req.io.emit(`schedule-update-${deleted.instructorEmail}`, {
-              action: 'deleted',
-              scheduleId: deleted._id,
-              timestamp: new Date()
-            });
-          }
-        });
-      }
-      
-      return res.json({ success: true, message: 'Schedule deleted', schedule: deleted });
+        }
+      });
+    }
+
+    // Log activity
+    await logActivity({
+      type: 'schedule-deleted',
+      message: `Schedule deleted: ${deleted.subject} for ${deleted.course} ${deleted.year} ${deleted.section} - ${deleted.day} at ${deleted.time} in ${deleted.room} (Instructor: ${deleted.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${deleted.course}/${deleted.year}/${deleted.section}`,
+      meta: {
+        scheduleId: deleted._id,
+        course: deleted.course,
+        year: deleted.year,
+        section: deleted.section,
+        subject: deleted.subject,
+        instructor: deleted.instructor,
+        instructorEmail: deleted.instructorEmail,
+        day: deleted.day,
+        time: deleted.time,
+        room: deleted.room
+      },
+      io: req.io
+    });
+    
+    return res.json({ success: true, message: 'Schedule deleted', schedule: deleted });
     }
 
     const deleted = await Schedule.findByIdAndDelete(id);
@@ -950,9 +1106,10 @@ router.delete('/:id', async (req, res) => {
           timestamp: new Date(),
           userId: req.userId || 'system'
         });
-        // Also emit for specific instructor
+        // Also emit for specific instructor (normalize email to lowercase)
         if (deleted.instructorEmail) {
-          req.io.emit(`schedule-update-${deleted.instructorEmail}`, {
+          const normalizedEmail = deleted.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
             action: 'deleted',
             scheduleId: deleted._id,
             timestamp: new Date()
@@ -961,6 +1118,27 @@ router.delete('/:id', async (req, res) => {
       });
     }
     
+    // Log activity
+    await logActivity({
+      type: 'schedule-deleted',
+      message: `Schedule deleted: ${deleted.subject} for ${deleted.course} ${deleted.year} ${deleted.section} - ${deleted.day} at ${deleted.time} in ${deleted.room} (Instructor: ${deleted.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${deleted.course}/${deleted.year}/${deleted.section}`,
+      meta: {
+        scheduleId: deleted._id,
+        course: deleted.course,
+        year: deleted.year,
+        section: deleted.section,
+        subject: deleted.subject,
+        instructor: deleted.instructor,
+        instructorEmail: deleted.instructorEmail,
+        day: deleted.day,
+        time: deleted.time,
+        room: deleted.room
+      },
+      io: req.io
+    });
+
     res.json({ success: true, message: 'Schedule deleted', schedule: deleted });
   } catch (error) {
     console.error('Compatibility schedule delete error:', error);
@@ -990,6 +1168,48 @@ router.post('/:id/archive', async (req, res) => {
     schedule.archived = true;
     await schedule.save();
 
+    // Broadcast real-time update (non-blocking)
+    if (req.io) {
+      setImmediate(() => {
+        req.io.emit('schedule-archived', {
+          action: 'archived',
+          schedule: schedule,
+          timestamp: new Date(),
+          userId: req.userId || 'system'
+        });
+        // Also emit for specific instructor (normalize email to lowercase)
+        if (schedule.instructorEmail) {
+          const normalizedEmail = schedule.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
+            action: 'archived',
+            schedule: schedule,
+            timestamp: new Date()
+          });
+        }
+      });
+    }
+
+    // Log activity
+    await logActivity({
+      type: 'schedule-archived',
+      message: `Schedule archived: ${schedule.subject} for ${schedule.course} ${schedule.year} ${schedule.section} - ${schedule.day} at ${schedule.time} in ${schedule.room} (Instructor: ${schedule.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${schedule.course}/${schedule.year}/${schedule.section}`,
+      meta: {
+        scheduleId: schedule._id,
+        course: schedule.course,
+        year: schedule.year,
+        section: schedule.section,
+        subject: schedule.subject,
+        instructor: schedule.instructor,
+        instructorEmail: schedule.instructorEmail,
+        day: schedule.day,
+        time: schedule.time,
+        room: schedule.room
+      },
+      io: req.io
+    });
+
     res.json({ success: true, message: 'Schedule archived successfully.' });
   } catch (err) {
     console.error('Error archiving schedule (mvcc):', err);
@@ -1014,6 +1234,48 @@ router.post('/:id/restore', async (req, res) => {
         try { await syncScheduleToCalendar(schedule); } catch (e) { console.warn('Resync after restore failed:', e.message); }
       }
     } catch (_) {}
+
+    // Broadcast real-time update (non-blocking)
+    if (req.io) {
+      setImmediate(() => {
+        req.io.emit('schedule-restored', {
+          action: 'restored',
+          schedule: schedule,
+          timestamp: new Date(),
+          userId: req.userId || 'system'
+        });
+        // Also emit for specific instructor (normalize email to lowercase)
+        if (schedule.instructorEmail) {
+          const normalizedEmail = schedule.instructorEmail.toLowerCase().trim();
+          req.io.emit(`schedule-update-${normalizedEmail}`, {
+            action: 'restored',
+            schedule: schedule,
+            timestamp: new Date()
+          });
+        }
+      });
+    }
+
+    // Log activity
+    await logActivity({
+      type: 'schedule-restored',
+      message: `Schedule restored: ${schedule.subject} for ${schedule.course} ${schedule.year} ${schedule.section} - ${schedule.day} at ${schedule.time} in ${schedule.room} (Instructor: ${schedule.instructor})`,
+      source: 'admin',
+      link: `/admin/schedule-management/${schedule.course}/${schedule.year}/${schedule.section}`,
+      meta: {
+        scheduleId: schedule._id,
+        course: schedule.course,
+        year: schedule.year,
+        section: schedule.section,
+        subject: schedule.subject,
+        instructor: schedule.instructor,
+        instructorEmail: schedule.instructorEmail,
+        day: schedule.day,
+        time: schedule.time,
+        room: schedule.room
+      },
+      io: req.io
+    });
 
     res.json({ success: true, message: 'Schedule restored successfully.' });
   } catch (err) {

@@ -436,9 +436,14 @@ router.post("/registration/send-registration", async (req, res) => {
       return res.status(400).json({ message: "Email and department are required" });
     }
 
-    const existing = await Instructor.findOne({ email });
+    // Check for existing instructor, excluding archived ones (archived instructors are treated as non-existent)
+    const existing = await Instructor.findOne({ 
+      email,
+      status: { $ne: 'archived' } // Exclude archived instructors
+    });
+    
     if (existing) {
-      if (["active", "archived"].includes(existing.status)) {
+      if (existing.status === "active") {
         return res.status(400).json({ message: "Email already registered" });
       }
       if (existing.status === "pending") {
@@ -446,10 +451,17 @@ router.post("/registration/send-registration", async (req, res) => {
       }
     }
 
+    // If there's an archived instructor with this email, delete it to allow new registration
+    const archivedInstructor = await Instructor.findOne({ email, status: 'archived' });
+    if (archivedInstructor) {
+      await Instructor.findByIdAndDelete(archivedInstructor._id);
+      console.log(`Deleted archived instructor with email ${email} to allow new registration`);
+    }
+
     let instructorId = existing ? existing.instructorId : await getNextSequence("instructorId");
 
     const instructor = await Instructor.findOneAndUpdate(
-      { email },
+      { email, status: { $ne: 'archived' } }, // Only update non-archived instructors
       {
         instructorId,
         email,
