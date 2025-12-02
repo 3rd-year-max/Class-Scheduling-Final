@@ -270,11 +270,24 @@ const RoomManagement = () => {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
 
+    // Handle null/undefined values - treat them as empty strings
+    if (aValue == null) aValue = '';
+    if (bValue == null) bValue = '';
+
+    // Convert to strings and lowercase for consistent comparison
     if (typeof aValue === 'string') {
       aValue = aValue.toLowerCase();
-      bValue = (bValue || '').toLowerCase();
+    } else {
+      aValue = String(aValue).toLowerCase();
+    }
+    
+    if (typeof bValue === 'string') {
+      bValue = bValue.toLowerCase();
+    } else {
+      bValue = String(bValue).toLowerCase();
     }
 
+    // Compare values
     if (aValue < bValue) {
       return sortConfig.direction === 'asc' ? -1 : 1;
     }
