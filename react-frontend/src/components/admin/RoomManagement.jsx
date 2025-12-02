@@ -274,24 +274,51 @@ const RoomManagement = () => {
     if (aValue == null) aValue = '';
     if (bValue == null) bValue = '';
 
-    // Convert to strings and lowercase for consistent comparison
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-    } else {
-      aValue = String(aValue).toLowerCase();
-    }
-    
-    if (typeof bValue === 'string') {
-      bValue = bValue.toLowerCase();
-    } else {
-      bValue = String(bValue).toLowerCase();
+    // Convert to strings for comparison
+    const aStr = String(aValue).trim();
+    const bStr = String(bValue).trim();
+
+    // For room names, use natural sort (handles numbers correctly)
+    if (sortConfig.key === 'room') {
+      // Natural sort: split by numbers and compare
+      const aParts = aStr.toLowerCase().match(/(\d+|\D+)/g) || [];
+      const bParts = bStr.toLowerCase().match(/(\d+|\D+)/g) || [];
+      
+      const maxLength = Math.max(aParts.length, bParts.length);
+      for (let i = 0; i < maxLength; i++) {
+        const aPart = aParts[i] || '';
+        const bPart = bParts[i] || '';
+        
+        const aNum = parseInt(aPart, 10);
+        const bNum = parseInt(bPart, 10);
+        
+        // If both are numbers, compare numerically
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          if (aNum !== bNum) {
+            return sortConfig.direction === 'asc' 
+              ? (aNum - bNum) 
+              : (bNum - aNum);
+          }
+        } else {
+          // Otherwise, compare as strings
+          if (aPart !== bPart) {
+            return sortConfig.direction === 'asc'
+              ? (aPart < bPart ? -1 : 1)
+              : (aPart > bPart ? -1 : 1);
+          }
+        }
+      }
+      return 0;
     }
 
-    // Compare values
-    if (aValue < bValue) {
+    // For other fields (area, status), use standard string comparison
+    const aLower = aStr.toLowerCase();
+    const bLower = bStr.toLowerCase();
+
+    if (aLower < bLower) {
       return sortConfig.direction === 'asc' ? -1 : 1;
     }
-    if (aValue > bValue) {
+    if (aLower > bLower) {
       return sortConfig.direction === 'asc' ? 1 : -1;
     }
     return 0;

@@ -125,7 +125,8 @@ const FacultyManagement = () => {
   const fetchInstructors = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.getInstructors();
+      // Include archived instructors so they can be displayed in the archived tab
+      const res = await apiClient.getInstructors({ showArchived: true });
       const data = res.data;
 
       // Normalize response: API may return an array or an object { success, instructors }
