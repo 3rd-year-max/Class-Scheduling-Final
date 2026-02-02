@@ -16,6 +16,7 @@ import {
 import TableSortHeader from '../common/TableSortHeader.jsx';
 import jsPDF from 'jspdf';
 import XLSX from 'xlsx-js-style';
+import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
 
 const ActivityLogs = () => {
   const [alerts, setAlerts] = useState([]);
@@ -224,11 +225,24 @@ const ActivityLogs = () => {
     return type.replace(/-/g, ' ').toUpperCase();
   };
 
-  const exportActivityLogsToPDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    let yPos = margin;
+  const exportActivityLogsToPDF = async () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      let yPos = margin;
+      
+      // Generate QR code for system identification
+      let qrCodeDataURL = null;
+      try {
+        qrCodeDataURL = await generateSystemQRCode({
+          reportType: 'Activity Logs Report',
+          generatedDate: new Date().toISOString(),
+          additionalInfo: `Total Activities: ${filteredAlerts.length}`
+        }, 100);
+      } catch (qrError) {
+        console.warn('QR code generation failed, continuing without QR code:', qrError);
+      }
 
     // Header
     doc.setFillColor(15, 44, 99);
@@ -291,10 +305,73 @@ const ActivityLogs = () => {
       yPos += 4;
     });
 
-    doc.save(`activity-logs-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Add footers and QR codes to all pages
+    const totalPages = doc.internal.pages.length - 1;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const footerY = pageHeight - 8;
+    const qrSize = 20; // QR code size in mm
+    
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      
+      // Footer line
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
+      
+      // Add QR code on the left side of footer (first page only)
+      if (i === 1 && qrCodeDataURL) {
+        try {
+          doc.addImage(qrCodeDataURL, 'PNG', margin, footerY - qrSize - 2, qrSize, qrSize);
+          doc.setFontSize(6);
+          doc.text('System Verified', margin + qrSize / 2, footerY - qrSize - 4, { align: 'center' });
+        } catch (error) {
+          console.error('Error adding QR code to PDF:', error);
+        }
+      }
+      
+      // Left footer: System name (with space for QR code on first page)
+      const leftMargin = (i === 1 && qrCodeDataURL) ? margin + qrSize + 3 : margin;
+      doc.text(
+        'Class Scheduling System',
+        leftMargin,
+        footerY,
+        { align: 'left' }
+      );
+      
+      // Center footer: Generation date
+      doc.text(
+        `Generated: ${new Date().toLocaleDateString()}`,
+        pageWidth / 2,
+        footerY,
+        { align: 'center' }
+      );
+      
+      // Right footer: Page number
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth - margin,
+        footerY,
+        { align: 'right' }
+      );
+    }
+
+      doc.save(`activity-logs-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    }
   };
 
-  const exportActivityLogsToExcel = () => {
+  const exportActivityLogsToExcel = async () => {
+    // Generate QR code data for system identification
+    const qrCodeData = generateSystemQRData({
+      reportType: 'Activity Logs Report (Excel)',
+      generatedDate: new Date().toISOString(),
+      additionalInfo: `Total Activities: ${filteredAlerts.length}`
+    });
+    
     const wb = XLSX.utils.book_new();
     
     const data = [
@@ -323,6 +400,63 @@ const ActivityLogs = () => {
         alignment: { horizontal: "center", vertical: "center" }
       };
     }
+
+    // Add footer rows
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    const totalRows = range.e.r + 1;
+    const columnCount = range.e.c + 1;
+    const footerStartRow = totalRows;
+    
+    const footerRow1 = new Array(columnCount).fill('');
+    const footerRow2 = new Array(columnCount).fill('');
+    const footerRow3 = new Array(columnCount).fill('');
+    const footerRow4 = new Array(columnCount).fill('');
+    
+    footerRow1[0] = 'Class Scheduling System';
+    footerRow2[0] = `Generated: ${new Date().toLocaleString()}`;
+    footerRow3[0] = 'Activity Logs Report';
+    footerRow4[0] = `System QR Code Data: ${qrCodeData}`;
+    
+    // Add footer rows to data
+    const footer1Ref = XLSX.utils.encode_cell({ r: footerStartRow, c: 0 });
+    const footer2Ref = XLSX.utils.encode_cell({ r: footerStartRow + 1, c: 0 });
+    const footer3Ref = XLSX.utils.encode_cell({ r: footerStartRow + 2, c: 0 });
+    const footer4Ref = XLSX.utils.encode_cell({ r: footerStartRow + 3, c: 0 });
+    
+    ws[footer1Ref] = { t: 's', v: footerRow1[0] };
+    ws[footer2Ref] = { t: 's', v: footerRow2[0] };
+    ws[footer3Ref] = { t: 's', v: footerRow3[0] };
+    ws[footer4Ref] = { t: 's', v: footerRow4[0] };
+    
+    // Style footer rows
+    const footerStyle = {
+      font: { color: { rgb: '64748B' }, sz: 9, italic: true },
+      alignment: { horizontal: 'left', vertical: 'center' },
+    };
+    
+    ws[footer1Ref].s = { ...footerStyle, font: { ...footerStyle.font, bold: true } };
+    ws[footer2Ref].s = footerStyle;
+    ws[footer3Ref].s = footerStyle;
+    ws[footer4Ref].s = {
+      font: { color: { rgb: '4F46E5' }, sz: 8, italic: true },
+      alignment: { horizontal: 'left', vertical: 'center' },
+    };
+    
+    // Merge footer cells across all columns
+    if (!ws['!merges']) ws['!merges'] = [];
+    ws['!merges'].push(
+      { s: { r: footerStartRow, c: 0 }, e: { r: footerStartRow, c: columnCount - 1 } },
+      { s: { r: footerStartRow + 1, c: 0 }, e: { r: footerStartRow + 1, c: columnCount - 1 } },
+      { s: { r: footerStartRow + 2, c: 0 }, e: { r: footerStartRow + 2, c: columnCount - 1 } },
+      { s: { r: footerStartRow + 3, c: 0 }, e: { r: footerStartRow + 3, c: columnCount - 1 } }
+    );
+    
+    // Update sheet reference to include footer rows
+    const newRange = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: footerStartRow + 3, c: columnCount - 1 }
+    });
+    ws['!ref'] = newRange;
 
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
     XLSX.writeFile(wb, `activity-logs-${new Date().toISOString().split('T')[0]}.xlsx`);

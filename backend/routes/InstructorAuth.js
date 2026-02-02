@@ -367,8 +367,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(500).json({ message: 'Server configuration error.' });
     }
 
+    const expiresIn = process.env.JWT_EXPIRES_IN || '1d'; // 1 day limit for account login
     const token = jwt.sign({ id: instructor._id, email: instructor.email }, process.env.JWT_SECRET, {
-      expiresIn: '1d'
+      expiresIn
     });
 
     // Return instructor data (without password) and token

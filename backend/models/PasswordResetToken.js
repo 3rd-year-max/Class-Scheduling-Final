@@ -26,7 +26,7 @@ const passwordResetTokenSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['instructor'],
+    enum: ['instructor', 'admin'],
     required: true,
     default: 'instructor'
   }

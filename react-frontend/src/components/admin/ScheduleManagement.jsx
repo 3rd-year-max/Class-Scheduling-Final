@@ -59,6 +59,18 @@ const ScheduleManagement = () => {
           <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
             Select a course and year level to manage class schedules, view sections, and organize academic timetables
           </p>
+          <div style={{
+            margin: '0 0 24px 0',
+            padding: '12px 16px',
+            background: '#fef3c7',
+            border: '1px solid #fbbf24',
+            borderRadius: '8px',
+            fontSize: '13px',
+            color: '#92400e',
+            fontWeight: '500',
+          }}>
+            <strong>Note:</strong> Straight class hour max - It should have 1hr vacant, not three consecutive classes.
+          </div>
           {/* Enhanced Course Cards */}
           {courses.map((course) => (
             <div

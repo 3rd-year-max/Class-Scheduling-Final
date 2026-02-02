@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLock, faCalendarAlt, faRightToBracket, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
+import { faLock, faCalendarAlt, faRightToBracket, faCheckCircle, faUser } from '@fortawesome/free-solid-svg-icons';
 import axios from "axios";
 import ReCAPTCHA from 'react-google-recaptcha';
 import executeRecaptchaWithRetry from '../../utils/recaptchaClient.js';
@@ -12,6 +12,7 @@ const RECAPTCHA_INVISIBLE = process.env.REACT_APP_RECAPTCHA_INVISIBLE === 'true'
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
+    username: '',
     password: ''
   });
   const [popup, setPopup] = useState({ show: false, message: '', type: '' });
@@ -64,6 +65,7 @@ const AdminLogin = () => {
     try {
       const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
       const res = await axios.post(`${apiBase}/api/admin/login`, {
+        username: formData.username,
         password: formData.password,
         recaptchaToken: token
       });
@@ -77,7 +79,8 @@ const AdminLogin = () => {
       }
     } catch (err) {
       // ❌ Show error popup
-      setPopup({ show: true, message: "Wrong password!", type: "error" });
+      const errorMessage = err.response?.data?.message || "Invalid username or password!";
+      setPopup({ show: true, message: errorMessage, type: "error" });
       setTimeout(() => {
         setPopup({ show: false, message: "", type: "" });
       }, 2000);
@@ -241,6 +244,48 @@ const AdminLogin = () => {
               gap: "20px",
               marginBottom: "30px"
             }}>
+              <div className="input-field1" style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                background: "white",
+                border: "2px solid #ddd",
+                borderRadius: "12px",
+                padding: 0,
+                transition: "all 0.3s ease",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)"
+              }}>
+                <FontAwesomeIcon 
+                  icon={faUser} 
+                  style={{
+                    padding: "0 15px",
+                    color: "#666",
+                    fontSize: "16px",
+                    minWidth: "50px",
+                    display: "flex",
+                    justifyContent: "center"
+                  }}
+                />
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  placeholder="Username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    outline: "none",
+                    padding: "18px 15px 18px 0",
+                    fontSize: "16px",
+                    background: "transparent",
+                    color: "#333"
+                  }}
+                />
+              </div>
+              
               <div className="input-field1" style={{
                 position: "relative",
                 display: "flex",

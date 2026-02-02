@@ -35,6 +35,8 @@ import mvccInstructorRoutes from './routes/mvccInstructorRoutes.js';
 import { versionConflictHandler } from './middleware/mvccTransaction.js';
 import { startWeatherScheduler } from './services/weatherScheduler.js';
 import Instructor from './models/Instructor.js'; // Import the model for index management
+import Admin from './models/Admin.js'; // Import Admin model for initialization
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { sanitizeInput } from './middleware/sanitizeInput.js';
@@ -245,6 +247,50 @@ async function setupIndexes() {
   }
 }
 
+// Function to initialize default admin account
+async function initializeAdmin() {
+  try {
+    // Check if admin already exists
+    const existingAdmin = await Admin.findOne({ username: 'admin' });
+    
+    if (existingAdmin) {
+      // If admin exists but doesn't have username, update it
+      if (!existingAdmin.username) {
+        existingAdmin.username = 'admin';
+        await existingAdmin.save();
+        console.log('✅ Updated existing admin account with username: admin');
+      } else {
+        console.log('✅ Admin account already exists with username: admin');
+      }
+      return;
+    }
+
+    // Get default password from environment or use a default
+    const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // Create default admin account
+    const admin = new Admin({
+      username: 'admin',
+      password: hashedPassword,
+      email: ''
+    });
+
+    await admin.save();
+    console.log('✅ Default admin account created successfully!');
+    console.log('   Username: admin');
+    console.log('   Password: ' + defaultPassword);
+    console.log('   ⚠️  Please change the default password after first login!');
+  } catch (err) {
+    // If error is due to duplicate username, that's okay
+    if (err.code === 11000) {
+      console.log('✅ Admin account already exists.');
+    } else {
+      console.error('❌ Error initializing admin account:', err);
+    }
+  }
+}
+
 // Connect to MongoDB and then setup indexes and start server
 mongoose
   .connect(mongoURI, {
@@ -265,6 +311,7 @@ mongoose
   .then(async () => {
     console.log('✅ MongoDB connected successfully');
     await setupIndexes(); // Ensure indexes before server start
+    await initializeAdmin(); // Initialize default admin account
 
     // After indexes setup, start your server...
     const server = http.createServer(app);

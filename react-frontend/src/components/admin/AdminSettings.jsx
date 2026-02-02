@@ -1,16 +1,115 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faGear,
   faClipboardList,
+  faKey,
+  faEnvelope,
+  faCheckCircle,
 } from '@fortawesome/free-solid-svg-icons';
+import axios from 'axios';
 import Sidebar from '../common/Sidebar.jsx';
 import Header from '../common/Header.jsx';
+import ReCAPTCHA from 'react-google-recaptcha';
+import executeRecaptchaWithRetry from '../../utils/recaptchaClient.js';
+
+const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY || '';
+const REQUIRE_RECAPTCHA = process.env.REACT_APP_REQUIRE_RECAPTCHA === 'true';
+const RECAPTCHA_INVISIBLE = process.env.REACT_APP_RECAPTCHA_INVISIBLE === 'true';
 
 const AdminSettings = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [passwordResetEmail, setPasswordResetEmail] = useState('');
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+  const [passwordResetError, setPasswordResetError] = useState('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState('');
+  const [recaptchaError, setRecaptchaError] = useState('');
+  const recaptchaRef = useRef(null);
+
+  const handleRecaptcha = (token) => {
+    setRecaptchaToken(token);
+    setRecaptchaError('');
+  };
+
+  const handlePasswordResetRequest = async (e) => {
+    e.preventDefault();
+    
+    if (!passwordResetEmail || !passwordResetEmail.trim()) {
+      setPasswordResetError('Email is required.');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(passwordResetEmail)) {
+      setPasswordResetError('Please enter a valid email address.');
+      return;
+    }
+
+    setPasswordResetLoading(true);
+    setPasswordResetError('');
+    setPasswordResetSuccess(false);
+
+    // Acquire token if required
+    let token = recaptchaToken;
+    if (REQUIRE_RECAPTCHA) {
+      if (RECAPTCHA_INVISIBLE) {
+        try {
+          const result = await executeRecaptchaWithRetry(recaptchaRef, { maxAttempts: 4 });
+          token = result || recaptchaToken;
+          if (!token) {
+            setRecaptchaError('Please complete the reCAPTCHA.');
+            setPasswordResetLoading(false);
+            return;
+          }
+          setRecaptchaToken(token);
+        } catch (err) {
+          console.error('reCAPTCHA execute error:', err);
+          setRecaptchaError('reCAPTCHA execution failed. Please try again.');
+          setPasswordResetLoading(false);
+          return;
+        }
+      } else {
+        if (!recaptchaToken) {
+          setRecaptchaError('Please complete the reCAPTCHA.');
+          setPasswordResetLoading(false);
+          return;
+        }
+        token = recaptchaToken;
+      }
+    }
+
+    try {
+      const apiBase = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+      const res = await axios.post(`${apiBase}/api/password-reset/forgot`, {
+        email: passwordResetEmail.trim(),
+        userType: 'admin',
+        recaptchaToken: token
+      });
+
+      if (res.data.success) {
+        setPasswordResetSuccess(true);
+        setTimeout(() => {
+          setShowPasswordResetModal(false);
+          setPasswordResetEmail('');
+          setPasswordResetSuccess(false);
+          setRecaptchaToken('');
+        }, 3000);
+      } else {
+        setPasswordResetError(res.data.message || 'Failed to send reset email. Please try again.');
+      }
+    } catch (err) {
+      console.error('Password reset request error:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to send reset email. Please try again.';
+      setPasswordResetError(errorMessage);
+    } finally {
+      setPasswordResetLoading(false);
+    }
+  };
 
   const settingsOptions = [
     {
@@ -22,10 +121,263 @@ const AdminSettings = () => {
       bgGradient: 'linear-gradient(135deg, #0f2c63 0%, #1e40af 100%)',
       action: () => navigate('/admin/activity-logs'),
     },
+    {
+      id: 'password-reset',
+      title: 'Change Password',
+      description: 'Request a password reset link to be sent to your email address. The email will be registered as your admin email if not already set.',
+      icon: faKey,
+      color: '#f97316',
+      bgGradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+      action: () => setShowPasswordResetModal(true),
+    },
   ];
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#f5f5f5' }}>
+      {/* Password Reset Modal */}
+      {showPasswordResetModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '40px',
+            maxWidth: '500px',
+            width: '90%',
+            position: 'relative',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            animation: 'slideUp 0.4s ease'
+          }}>
+            <button
+              onClick={() => {
+                setShowPasswordResetModal(false);
+                setPasswordResetEmail('');
+                setPasswordResetError('');
+                setPasswordResetSuccess(false);
+                setRecaptchaToken('');
+              }}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: '#64748b',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#f1f5f9';
+                e.target.style.color = '#1e293b';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'none';
+                e.target.style.color = '#64748b';
+              }}
+            >
+              ×
+            </button>
+
+            {passwordResetSuccess ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 30px',
+                  animation: 'scaleIn 0.5s ease'
+                }}>
+                  <FontAwesomeIcon icon={faCheckCircle} style={{ fontSize: '50px', color: 'white' }} />
+                </div>
+                <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginBottom: '15px' }}>
+                  Email Sent!
+                </h2>
+                <p style={{ fontSize: '16px', color: '#64748b', lineHeight: '1.6', marginBottom: '10px' }}>
+                  A password reset link has been sent to <strong>{passwordResetEmail}</strong>
+                </p>
+                <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '30px' }}>
+                  Please check your email for instructions. The link will expire in 1 hour.
+                </p>
+              </div>
+            ) : (
+              <>
+                <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginBottom: '10px' }}>
+                  Request Password Reset
+                </h2>
+                <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '30px' }}>
+                  Enter your email address to receive a password reset link. This email will be registered as your admin email if not already set.
+                </p>
+
+                {passwordResetError && (
+                  <div style={{
+                    background: '#fee2e2',
+                    color: '#dc2626',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    marginBottom: '20px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    border: '1px solid #fecaca'
+                  }}>
+                    {passwordResetError}
+                  </div>
+                )}
+
+                <form onSubmit={handlePasswordResetRequest}>
+                  <div style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'white',
+                    border: '2px solid #ddd',
+                    borderRadius: '12px',
+                    padding: 0,
+                    marginBottom: '20px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <FontAwesomeIcon
+                      icon={faEnvelope}
+                      style={{
+                        padding: '0 15px',
+                        color: '#666',
+                        fontSize: '16px',
+                        minWidth: '50px',
+                        display: 'flex',
+                        justifyContent: 'center'
+                      }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={passwordResetEmail}
+                      onChange={(e) => {
+                        setPasswordResetEmail(e.target.value);
+                        setPasswordResetError('');
+                      }}
+                      required
+                      disabled={passwordResetLoading}
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        outline: 'none',
+                        padding: '18px 15px 18px 0',
+                        fontSize: '16px',
+                        background: 'transparent',
+                        color: '#333'
+                      }}
+                    />
+                  </div>
+
+                  {RECAPTCHA_SITE_KEY && (
+                    <>
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        sitekey={RECAPTCHA_SITE_KEY}
+                        onChange={handleRecaptcha}
+                        size={RECAPTCHA_INVISIBLE ? 'invisible' : undefined}
+                        style={{ margin: '20px 0', alignSelf: 'center' }}
+                      />
+                      {recaptchaError && (
+                        <div style={{ color: '#ef4444', marginBottom: '10px', fontSize: '14px' }}>
+                          {recaptchaError}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPasswordResetModal(false);
+                        setPasswordResetEmail('');
+                        setPasswordResetError('');
+                        setRecaptchaToken('');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '12px 24px',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '10px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        background: 'white',
+                        color: '#64748b',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#f1f5f9';
+                        e.target.style.borderColor = '#cbd5e1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = 'white';
+                        e.target.style.borderColor = '#e2e8f0';
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={passwordResetLoading}
+                      style={{
+                        flex: 1,
+                        padding: '12px 24px',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: passwordResetLoading ? 'not-allowed' : 'pointer',
+                        background: passwordResetLoading ? '#9ca3af' : 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                        color: 'white',
+                        transition: 'all 0.3s ease',
+                        opacity: passwordResetLoading ? 0.7 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!passwordResetLoading) {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 8px 20px rgba(249, 115, 22, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!passwordResetLoading) {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = 'none';
+                        }
+                      }}
+                    >
+                      {passwordResetLoading ? 'Sending...' : 'Send Reset Link'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <main
@@ -237,7 +589,7 @@ const AdminSettings = () => {
                     }}
                   >
                     <FontAwesomeIcon icon={option.icon} />
-                    <span>View Activity Logs</span>
+                    <span>{option.id === 'password-reset' ? 'Request Password Reset' : 'View Activity Logs'}</span>
                   </button>
                 </div>
               </div>
@@ -435,6 +787,21 @@ const AdminSettings = () => {
           50%, 100% {
             left: 100%;
           }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(50px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
 
         @media (max-width: 768px) {

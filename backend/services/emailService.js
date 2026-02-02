@@ -1,12 +1,15 @@
 import nodemailer from 'nodemailer';
 
+// Remove spaces from EMAIL_PASS (Gmail App Passwords are often displayed with spaces)
+const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s/g, '') : '';
+
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
   secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER, // your email
-    pass: process.env.EMAIL_PASS, // your email password or app password
+    pass: emailPass, // your email password or app password (spaces removed)
   },
 });
 

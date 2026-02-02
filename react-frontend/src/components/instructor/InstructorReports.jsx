@@ -20,6 +20,7 @@ import apiClient from '../../services/apiClient.js';
 import { faCode } from '@fortawesome/free-solid-svg-icons';
 import { io } from 'socket.io-client';
 import { useToast } from '../common/ToastProvider.jsx';
+import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
 
 const InstructorReports = () => {
   const { userEmail } = useContext(AuthContext);
@@ -498,13 +499,27 @@ const InstructorReports = () => {
   };
 
   // PDF Export: Professional table format schedule report
-  const exportToPDF = () => {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    
-    // Colors
-    const headerColor = [15, 44, 99]; // #0f2c63
+  const exportToPDF = async () => {
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      
+      // Colors
+      const headerColor = [15, 44, 99]; // #0f2c63
+
+      // Generate QR code for system identification
+      let qrCodeDataURL = null;
+      try {
+        qrCodeDataURL = await generateSystemQRCode({
+          reportType: 'Teaching Schedule Report',
+          generatedDate: new Date().toISOString(),
+          userInfo: `${instructorData.firstname} ${instructorData.lastname}`,
+          additionalInfo: `Department: ${instructorData.department || 'N/A'}`
+        }, 100);
+      } catch (qrError) {
+        console.warn('QR code generation failed, continuing without QR code:', qrError);
+      }
 
     // Report Header
     doc.setFillColor(...headerColor);
@@ -634,25 +649,67 @@ const InstructorReports = () => {
       },
     });
 
-    // Add page numbers to all pages after table is drawn
+    // Add footers and QR codes to all pages after table is drawn
     const totalPages = doc.internal.pages.length - 1;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const footerY = pageHeight - 8;
+    const qrSize = 20; // QR code size in mm
+    
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setTextColor(100, 116, 139);
+      
+      // Footer line
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
+      
+      // Add QR code on the left side of footer (first page only)
+      if (i === 1 && qrCodeDataURL) {
+        try {
+          doc.addImage(qrCodeDataURL, 'PNG', margin, footerY - qrSize - 2, qrSize, qrSize);
+          doc.setFontSize(6);
+          doc.text('System Verified', margin + qrSize / 2, footerY - qrSize - 4, { align: 'center' });
+        } catch (error) {
+          console.error('Error adding QR code to PDF:', error);
+        }
+      }
+      
+      // Left footer: System name (with space for QR code on first page)
+      const leftMargin = (i === 1 && qrCodeDataURL) ? margin + qrSize + 3 : margin;
+      doc.text(
+        'Class Scheduling System',
+        leftMargin,
+        footerY,
+        { align: 'left' }
+      );
+      
+      // Center footer: Generation date
+      doc.text(
+        `Generated: ${new Date().toLocaleDateString()}`,
+        pageWidth / 2,
+        footerY,
+        { align: 'center' }
+      );
+      
+      // Right footer: Page number
       doc.text(
         `Page ${i} of ${totalPages}`,
         pageWidth - margin,
-        doc.internal.pageSize.getHeight() - 10,
+        footerY,
         { align: 'right' }
       );
     }
 
-    // Save the PDF
-    doc.save(`Teaching_Schedule_${instructorData.firstname}_${instructorData.lastname}.pdf`);
-    
-    // Log the download activity
-    logReportDownload('PDF');
+      // Save the PDF
+      doc.save(`Teaching_Schedule_${instructorData.firstname}_${instructorData.lastname}.pdf`);
+      
+      // Log the download activity
+      logReportDownload('PDF');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    }
   };
 
   // Helper functions for Excel export (matching admin format)
@@ -838,6 +895,14 @@ const InstructorReports = () => {
   // Excel Export (matching admin format but filtered to instructor)
   const exportToExcel = async () => {
     try {
+    // Generate QR code data for system identification
+    const qrCodeData = generateSystemQRData({
+      reportType: 'Teaching Schedule Report (Excel)',
+      generatedDate: new Date().toISOString(),
+      userInfo: `${instructorData.firstname} ${instructorData.lastname}`,
+      additionalInfo: `Department: ${instructorData.department || 'N/A'}`
+    });
+    
     const wb = XLSX.utils.book_new();
       const timeSlots = generateTimeSlotsForExcel();
       const generatedLabel = new Date().toLocaleString();
@@ -1397,6 +1462,73 @@ const InstructorReports = () => {
       }
       
       XLSX.utils.book_append_sheet(wb, wsInstructors, 'Instructor');
+
+      // Add footer rows to all sheets
+      const addFooterToSheet = (ws, sheetName, totalRows, columnCount) => {
+        const footerRow1 = new Array(columnCount).fill('');
+        const footerRow2 = new Array(columnCount).fill('');
+        const footerRow3 = new Array(columnCount).fill('');
+        const footerRow4 = new Array(columnCount).fill('');
+        
+        footerRow1[0] = 'Class Scheduling System';
+        footerRow2[0] = `Generated: ${new Date().toLocaleString()}`;
+        footerRow3[0] = `Report: ${sheetName} - ${instructorData.firstname} ${instructorData.lastname}`;
+        footerRow4[0] = `System QR Code Data: ${qrCodeData}`;
+        
+        // Add footer rows
+        const footerStartRow = totalRows;
+        const footer1Ref = XLSX.utils.encode_cell({ r: footerStartRow, c: 0 });
+        const footer2Ref = XLSX.utils.encode_cell({ r: footerStartRow + 1, c: 0 });
+        const footer3Ref = XLSX.utils.encode_cell({ r: footerStartRow + 2, c: 0 });
+        const footer4Ref = XLSX.utils.encode_cell({ r: footerStartRow + 3, c: 0 });
+        
+        ws[footer1Ref] = { t: 's', v: footerRow1[0] };
+        ws[footer2Ref] = { t: 's', v: footerRow2[0] };
+        ws[footer3Ref] = { t: 's', v: footerRow3[0] };
+        ws[footer4Ref] = { t: 's', v: footerRow4[0] };
+        
+        // Style footer rows
+        const footerStyle = {
+          font: { color: { rgb: '64748B' }, sz: 9, italic: true },
+          alignment: { horizontal: 'left', vertical: 'center' },
+        };
+        
+        ws[footer1Ref].s = { ...footerStyle, font: { ...footerStyle.font, bold: true } };
+        ws[footer2Ref].s = footerStyle;
+        ws[footer3Ref].s = footerStyle;
+        
+        // Style footer rows
+        ws[footer4Ref].s = {
+          font: { color: { rgb: '4F46E5' }, sz: 8, italic: true },
+          alignment: { horizontal: 'left', vertical: 'center' },
+        };
+        
+        // Merge footer cells across all columns
+        if (!ws['!merges']) ws['!merges'] = [];
+        ws['!merges'].push(
+          { s: { r: footerStartRow, c: 0 }, e: { r: footerStartRow, c: columnCount - 1 } },
+          { s: { r: footerStartRow + 1, c: 0 }, e: { r: footerStartRow + 1, c: columnCount - 1 } },
+          { s: { r: footerStartRow + 2, c: 0 }, e: { r: footerStartRow + 2, c: columnCount - 1 } },
+          { s: { r: footerStartRow + 3, c: 0 }, e: { r: footerStartRow + 3, c: columnCount - 1 } }
+        );
+        
+        // Update sheet reference to include footer rows
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        const newRange = XLSX.utils.encode_range({
+          s: range.s,
+          e: { r: footerStartRow + 3, c: range.e.c }
+        });
+        ws['!ref'] = newRange;
+      };
+      
+      // Add footers to all sheets
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        const totalRows = range.e.r + 1;
+        const columnCount = range.e.c + 1;
+        addFooterToSheet(ws, sheetName, totalRows, columnCount);
+      });
 
       // Save the workbook
       const fileName = `Teaching_Schedule_${instructorData.firstname}_${instructorData.lastname}_${new Date().toISOString().split('T')[0]}.xlsx`;
