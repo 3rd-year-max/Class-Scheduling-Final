@@ -14,6 +14,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import XLSX from 'xlsx-js-style';
 import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
+import { generateDocumentId } from '../../services/documentService.js';
 
 const Reports = () => {
   const [allSchedules, setAllSchedules] = useState([]); // All schedules for all years and courses
@@ -932,14 +933,44 @@ const Reports = () => {
       const headerColor = [15, 44, 99]; // #0f2c63
       let currentY = 0;
       
-      // Generate QR code for system identification
+      // Generate document ID and QR code for document retrieval
       let qrCodeDataURL = null;
+      let documentId = null;
+      
       try {
+        // First generate a document ID for retrieval
+        const docIdResponse = await generateDocumentId({
+          documentType: 'admin-report',
+          reportType: 'Class Schedule Report',
+          filters: {
+            // Using placeholder values since these variables don't exist yet
+            viewMode: 'all',
+            selectedCourse: 'all',
+            selectedYearLevel: 'all',
+            selectedDepartment: 'all',
+            selectedRoom: 'all',
+            selectedInstructor: 'all',
+            selectedTimeSlot: 'all'
+          },
+          generatedBy: 'Administrator'
+        });
+
+        if (docIdResponse.success) {
+          documentId = docIdResponse.data.documentId;
+          console.log('Generated document ID:', documentId);
+        } else {
+          console.warn('Document ID generation failed:', docIdResponse.error);
+        }
+        
+        // Generate QR code (with or without document ID)
         qrCodeDataURL = await generateSystemQRCode({
+          documentId: documentId, // This can be null, fallback will handle it
           reportType: 'Class Schedule Report',
           generatedDate: new Date().toISOString(),
           additionalInfo: 'Comprehensive schedule report with all departments and year levels'
-        }, 100);
+        }, 120); // Increased size for better scanning
+        
+        console.log('Generated QR code:', qrCodeDataURL ? 'Success' : 'Failed');
       } catch (qrError) {
         console.warn('QR code generation failed, continuing without QR code:', qrError);
       }

@@ -14,6 +14,7 @@ import InstructorLogin from './components/login/InstructorLogin.jsx';
 import InstructorSignup from './components/login/InstructorSignup.jsx';
 import ForgotPassword from './components/login/ForgotPassword.jsx';
 import ResetPassword from './components/login/ResetPassword.jsx';
+import DocumentViewer from './components/common/DocumentViewer.jsx';
 
 // Lazy load admin components (heavy components, load on demand)
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard.jsx'));
@@ -57,6 +58,9 @@ function App() {
                     <Route path="/instructor/signup" element={<InstructorSignup />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/password-reset" element={<ResetPassword />} />
+                    
+                    {/* Document viewer for QR code scans - no auth required */}
+                    <Route path="/document/:documentId" element={<DocumentViewer />} />
                     
                     {/* Admin routes - lazy loaded */}
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />

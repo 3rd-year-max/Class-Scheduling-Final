@@ -17,6 +17,7 @@ import TableSortHeader from '../common/TableSortHeader.jsx';
 import jsPDF from 'jspdf';
 import XLSX from 'xlsx-js-style';
 import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
+import { generateDocumentId } from '../../services/documentService.js';
 
 const ActivityLogs = () => {
   const [alerts, setAlerts] = useState([]);
@@ -232,14 +233,41 @@ const ActivityLogs = () => {
       const margin = 20;
       let yPos = margin;
       
-      // Generate QR code for system identification
+      // Generate document ID and QR code for document retrieval
       let qrCodeDataURL = null;
+      let documentId = null;
+      
       try {
+        // First generate a document ID for retrieval  
+        const docIdResponse = await generateDocumentId({
+          documentType: 'activity-logs',
+          reportType: 'Activity Logs Report',
+          filters: {
+            startDate: filters.dateFrom,
+            endDate: filters.dateTo,
+            type: filters.type,
+            source: filters.source,
+            searchQuery
+          },
+          generatedBy: 'Administrator'
+        });
+
+        if (docIdResponse.success) {
+          documentId = docIdResponse.data.documentId;
+          console.log('Generated document ID:', documentId);
+        } else {
+          console.warn('Document ID generation failed:', docIdResponse.error);
+        }
+        
+        // Generate QR code (with or without document ID)
         qrCodeDataURL = await generateSystemQRCode({
+          documentId: documentId, // This can be null, fallback will handle it
           reportType: 'Activity Logs Report',
           generatedDate: new Date().toISOString(),
           additionalInfo: `Total Activities: ${filteredAlerts.length}`
-        }, 100);
+        }, 120); // Increased size for better scanning
+        
+        console.log('Generated QR code:', qrCodeDataURL ? 'Success' : 'Failed');
       } catch (qrError) {
         console.warn('QR code generation failed, continuing without QR code:', qrError);
       }

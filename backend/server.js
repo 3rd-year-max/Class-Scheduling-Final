@@ -32,6 +32,7 @@ import mvccScheduleRoutes from './routes/mvccScheduleRoutes.js';
 import mvccSectionRoutes from './routes/mvccSectionRoutes.js';
 import mvccRoomRoutes from './routes/mvccRoomRoutes.js';
 import mvccInstructorRoutes from './routes/mvccInstructorRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
 import { versionConflictHandler } from './middleware/mvccTransaction.js';
 import { startWeatherScheduler } from './services/weatherScheduler.js';
 import Instructor from './models/Instructor.js'; // Import the model for index management
@@ -368,6 +369,7 @@ mongoose
     app.use('/api/public', publicRoutes);
     app.use('/api/weather', weatherRoutes);
     app.use('/api/admin-message', adminMessageRoutes);
+    app.use('/api/documents', documentRoutes);
     app.use("/uploads", express.static("uploads"));
 
     // ============== ERROR HANDLING ==============

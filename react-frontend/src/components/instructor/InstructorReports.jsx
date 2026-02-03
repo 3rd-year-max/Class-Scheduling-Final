@@ -21,6 +21,7 @@ import { faCode } from '@fortawesome/free-solid-svg-icons';
 import { io } from 'socket.io-client';
 import { useToast } from '../common/ToastProvider.jsx';
 import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
+import { generateDocumentId } from '../../services/documentService.js';
 
 const InstructorReports = () => {
   const { userEmail } = useContext(AuthContext);
@@ -82,7 +83,17 @@ const InstructorReports = () => {
     const params = new URLSearchParams(window.location.search);
     const q = params.get('q');
     if (q) setSearchTerm(q);
-  }, []);
+    
+    // Handle document retrieval parameters
+    const documentId = params.get('documentId');
+    const reportType = params.get('reportType');
+    
+    if (documentId && reportType) {
+      showToast('Document loaded from QR code scan', 'success');
+      // You can add additional handling here if needed
+      // For example, pre-fill filters or show a notification
+    }
+  }, [showToast]);
   const weekDays = [
     { key: "Monday", label: "Monday", short: "Mon" },
     { key: "Tuesday", label: "Tuesday", short: "Tue" },
@@ -508,15 +519,41 @@ const InstructorReports = () => {
       // Colors
       const headerColor = [15, 44, 99]; // #0f2c63
 
-      // Generate QR code for system identification
+      // Generate document ID and QR code for document retrieval
       let qrCodeDataURL = null;
+      let documentId = null;
+      
       try {
+        // First generate a document ID for retrieval
+        const docIdResponse = await generateDocumentId({
+          documentType: 'instructor-schedule',
+          instructorId: instructorData._id || instructorData.id,
+          reportType: 'Teaching Schedule Report',
+          filters: {
+            startDate: filteredSchedule.length > 0 ? new Date().toISOString().split('T')[0] : null,
+            endDate: null,
+            department: instructorData.department
+          },
+          generatedBy: `${instructorData.firstname} ${instructorData.lastname}`
+        });
+
+        if (docIdResponse.success) {
+          documentId = docIdResponse.data.documentId;
+          console.log('Generated document ID:', documentId);
+        } else {
+          console.warn('Document ID generation failed:', docIdResponse.error);
+        }
+        
+        // Generate QR code (with or without document ID)
         qrCodeDataURL = await generateSystemQRCode({
+          documentId: documentId, // This can be null, fallback will handle it
           reportType: 'Teaching Schedule Report',
           generatedDate: new Date().toISOString(),
           userInfo: `${instructorData.firstname} ${instructorData.lastname}`,
           additionalInfo: `Department: ${instructorData.department || 'N/A'}`
-        }, 100);
+        }, 120); // Increased size for better scanning
+        
+        console.log('Generated QR code:', qrCodeDataURL ? 'Success' : 'Failed');
       } catch (qrError) {
         console.warn('QR code generation failed, continuing without QR code:', qrError);
       }
