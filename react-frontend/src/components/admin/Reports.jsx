@@ -13,7 +13,7 @@ import apiClient from '../../services/apiClient.js';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import XLSX from 'xlsx-js-style';
-import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
+import { generateSystemBarcode, generateSystemBarcodeData } from '../../utils/barcodeGenerator.js';
 import { generateDocumentId } from '../../services/documentService.js';
 
 const Reports = () => {
@@ -845,8 +845,8 @@ const Reports = () => {
     
     XLSX.utils.book_append_sheet(wb, wsInstructors, 'Instructor');
 
-    // Generate QR code data for system identification
-    const qrCodeData = generateSystemQRData({
+    // Generate barcode data for system identification
+    const barcodeData = generateSystemBarcodeData({
       reportType: 'Class Schedule Report (Excel)',
       generatedDate: new Date().toISOString(),
       additionalInfo: 'Multi-sheet comprehensive schedule report'
@@ -862,7 +862,7 @@ const Reports = () => {
       footerRow1[0] = 'Class Scheduling System';
       footerRow2[0] = `Generated: ${new Date().toLocaleString()}`;
       footerRow3[0] = `Report: ${sheetName}`;
-      footerRow4[0] = `System QR Code Data: ${qrCodeData}`;
+      footerRow4[0] = `System Barcode Data: ${barcodeData}`;
       
       // Add footer rows
       const footerStartRow = totalRows;
@@ -933,8 +933,8 @@ const Reports = () => {
       const headerColor = [15, 44, 99]; // #0f2c63
       let currentY = 0;
       
-      // Generate document ID and QR code for document retrieval
-      let qrCodeDataURL = null;
+      // Generate document ID and barcode for document retrieval
+      let barcodeDataURL = null;
       let documentId = null;
       
       try {
@@ -943,7 +943,6 @@ const Reports = () => {
           documentType: 'admin-report',
           reportType: 'Class Schedule Report',
           filters: {
-            // Using placeholder values since these variables don't exist yet
             viewMode: 'all',
             selectedCourse: 'all',
             selectedYearLevel: 'all',
@@ -962,17 +961,17 @@ const Reports = () => {
           console.warn('Document ID generation failed:', docIdResponse.error);
         }
         
-        // Generate QR code (with or without document ID)
-        qrCodeDataURL = await generateSystemQRCode({
-          documentId: documentId, // This can be null, fallback will handle it
+        // Generate barcode (with or without document ID)
+        barcodeDataURL = generateSystemBarcode({
+          documentId: documentId,
           reportType: 'Class Schedule Report',
           generatedDate: new Date().toISOString(),
           additionalInfo: 'Comprehensive schedule report with all departments and year levels'
-        }, 120); // Increased size for better scanning
+        }, 50);
         
-        console.log('Generated QR code:', qrCodeDataURL ? 'Success' : 'Failed');
-      } catch (qrError) {
-        console.warn('QR code generation failed, continuing without QR code:', qrError);
+        console.log('Generated barcode:', barcodeDataURL ? 'Success' : 'Failed');
+      } catch (barcodeError) {
+        console.warn('Barcode generation failed, continuing without barcode:', barcodeError);
       }
 
     // Helper function to add page header
@@ -1215,11 +1214,12 @@ const Reports = () => {
       },
     });
 
-    // Add footers and QR codes to all pages
+    // Add footers and barcodes to all pages
     const totalPages = doc.internal.pages.length - 1;
     const pageHeight = doc.internal.pageSize.getHeight();
     const footerY = pageHeight - 8;
-    const qrSize = 20; // QR code size in mm
+    const barcodeWidth = 45; // barcode width in mm
+    const barcodeHeight = 12; // barcode height in mm
     
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
@@ -1230,19 +1230,19 @@ const Reports = () => {
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
       
-      // Add QR code on the left side of footer (first page only)
-      if (i === 1 && qrCodeDataURL) {
+      // Add barcode on the left side of footer (first page only)
+      if (i === 1 && barcodeDataURL) {
         try {
-          doc.addImage(qrCodeDataURL, 'PNG', margin, footerY - qrSize - 2, qrSize, qrSize);
+          doc.addImage(barcodeDataURL, 'PNG', margin, footerY - barcodeHeight - 2, barcodeWidth, barcodeHeight);
           doc.setFontSize(6);
-          doc.text('System Verified', margin + qrSize / 2, footerY - qrSize - 4, { align: 'center' });
+          doc.text('System Verified', margin + barcodeWidth / 2, footerY - barcodeHeight - 4, { align: 'center' });
         } catch (error) {
-          console.error('Error adding QR code to PDF:', error);
+          console.error('Error adding barcode to PDF:', error);
         }
       }
       
-      // Left footer: System name (with space for QR code on first page)
-      const leftMargin = (i === 1 && qrCodeDataURL) ? margin + qrSize + 3 : margin;
+      // Left footer: System name (with space for barcode on first page)
+      const leftMargin = (i === 1 && barcodeDataURL) ? margin + barcodeWidth + 3 : margin;
       doc.text(
         'Class Scheduling System',
         leftMargin,

@@ -1,26 +1,35 @@
 import AdminMessage from '../models/AdminMessage.js';
 import InstructorNotification from '../models/InstructorNotification.js';
+import Instructor from '../models/Instructor.js';
 
 // Send a message from admin to instructor and create notification
 export const sendMessage = async (req, res) => {
   const { instructorId, adminId, message } = req.body;
   try {
+    if (!instructorId || !message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ success: false, error: 'Instructor and message are required.' });
+    }
+    const instructor = await Instructor.findById(instructorId).select('email').lean();
+    if (!instructor || !instructor.email) {
+      return res.status(404).json({ success: false, error: 'Instructor not found.' });
+    }
     const newMessage = await AdminMessage.create({
       instructor: instructorId,
-      admin: adminId,
-      message
+      admin: adminId || null,
+      message: message.trim()
     });
-    // Create notification for instructor
+    // Create notification using schema fields: instructorEmail, title, message, link, read
     await InstructorNotification.create({
-      instructor: instructorId,
-      type: 'admin_message',
+      instructorEmail: instructor.email.toLowerCase().trim(),
+      title: 'Admin Message',
       message: 'You have a new message from admin.',
-      referenceId: newMessage._id,
+      link: null,
       read: false
     });
-    res.status(201).json(newMessage);
+    return res.status(201).json(newMessage);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Admin sendMessage error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to send message.' });
   }
 };
 
@@ -28,10 +37,14 @@ export const sendMessage = async (req, res) => {
 export const getMessagesForInstructor = async (req, res) => {
   const { instructorId } = req.params;
   try {
-    const messages = await AdminMessage.find({ instructor: instructorId }).sort({ createdAt: -1 });
-    res.json(messages);
+    if (!instructorId) {
+      return res.status(400).json({ success: false, error: 'Instructor ID is required.' });
+    }
+    const messages = await AdminMessage.find({ instructor: instructorId }).sort({ createdAt: -1 }).lean();
+    return res.json(messages);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('getMessagesForInstructor error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to fetch messages.' });
   }
 };
 
@@ -39,9 +52,16 @@ export const getMessagesForInstructor = async (req, res) => {
 export const markMessageRead = async (req, res) => {
   const { messageId } = req.params;
   try {
+    if (!messageId) {
+      return res.status(400).json({ success: false, error: 'Message ID is required.' });
+    }
     const message = await AdminMessage.findByIdAndUpdate(messageId, { read: true }, { new: true });
-    res.json(message);
+    if (!message) {
+      return res.status(404).json({ success: false, error: 'Message not found.' });
+    }
+    return res.json(message);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('markMessageRead error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to update message.' });
   }
 };

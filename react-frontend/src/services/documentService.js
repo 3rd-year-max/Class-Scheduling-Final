@@ -1,7 +1,5 @@
-import apiClient from './apiClient';
-
 /**
- * Generate a document ID for QR code retrieval
+ * Generate a document ID for barcode retrieval
  * @param {Object} documentMetadata - Metadata for the document
  * @returns {Promise<Object>} - Generated document ID and retrieval URL
  */

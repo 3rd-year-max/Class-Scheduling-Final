@@ -16,7 +16,7 @@ import {
 import TableSortHeader from '../common/TableSortHeader.jsx';
 import jsPDF from 'jspdf';
 import XLSX from 'xlsx-js-style';
-import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
+import { generateSystemBarcode, generateSystemBarcodeData } from '../../utils/barcodeGenerator.js';
 import { generateDocumentId } from '../../services/documentService.js';
 
 const ActivityLogs = () => {
@@ -34,6 +34,7 @@ const ActivityLogs = () => {
   });
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [showFilters, setShowFilters] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [filters, setFilters] = useState({
     type: 'all',
     source: 'all',
@@ -53,33 +54,36 @@ const ActivityLogs = () => {
 
   const fetchActivityLogs = async (page = 1) => {
     setLoading(true);
+    setFetchError(null);
     try {
-      // Unified activity endpoint with pagination
       const res = await apiClient.get(`/api/admin/activity?page=${page}&limit=50`);
-      let activities = Array.isArray(res.data.activities) ? res.data.activities : [];
-      
-      // Fallback: legacy alerts endpoint if unified returns empty
-      if (activities.length === 0 && !res.data.pagination) {
-        const legacy = await apiClient.get('/api/admin/alerts');
-        const legacyAlerts = Array.isArray(legacy.data.alerts) ? legacy.data.alerts : [];
-        activities = legacyAlerts.map((a) => ({
-          id: String(a._id || a.id || Math.random()),
-          source: 'admin',
-          type: a.type || 'alert',
-          message: a.message,
-          link: a.link || null,
-          createdAt: a.createdAt || a.updatedAt || a.timestamp,
-        }));
+      let activities = Array.isArray(res.data?.activities) ? res.data.activities : [];
+
+      if (activities.length === 0 && !res.data?.pagination) {
+        try {
+          const legacy = await apiClient.get('/api/admin/alerts');
+          const legacyAlerts = Array.isArray(legacy.data?.alerts) ? legacy.data.alerts : [];
+          activities = legacyAlerts.map((a) => ({
+            id: String(a._id || a.id || Math.random()),
+            source: a.source || 'admin',
+            type: a.type || 'alert',
+            message: a.message || '',
+            link: a.link || null,
+            createdAt: a.createdAt || a.updatedAt || a.timestamp,
+          }));
+        } catch (_) {
+          // keep activities as []
+        }
       }
-      
+
       setAlerts(activities);
-      
-      // Update pagination if available
-      if (res.data.pagination) {
+      if (res.data?.pagination) {
         setPagination(res.data.pagination);
       }
     } catch (err) {
       console.error('Failed to load activity logs', err);
+      setAlerts([]);
+      setFetchError('Failed to load activity logs. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -233,8 +237,8 @@ const ActivityLogs = () => {
       const margin = 20;
       let yPos = margin;
       
-      // Generate document ID and QR code for document retrieval
-      let qrCodeDataURL = null;
+      // Generate document ID and barcode for document retrieval
+      let barcodeDataURL = null;
       let documentId = null;
       
       try {
@@ -259,17 +263,17 @@ const ActivityLogs = () => {
           console.warn('Document ID generation failed:', docIdResponse.error);
         }
         
-        // Generate QR code (with or without document ID)
-        qrCodeDataURL = await generateSystemQRCode({
-          documentId: documentId, // This can be null, fallback will handle it
+        // Generate barcode (with or without document ID)
+        barcodeDataURL = generateSystemBarcode({
+          documentId: documentId,
           reportType: 'Activity Logs Report',
           generatedDate: new Date().toISOString(),
           additionalInfo: `Total Activities: ${filteredAlerts.length}`
-        }, 120); // Increased size for better scanning
+        }, 50);
         
-        console.log('Generated QR code:', qrCodeDataURL ? 'Success' : 'Failed');
-      } catch (qrError) {
-        console.warn('QR code generation failed, continuing without QR code:', qrError);
+        console.log('Generated barcode:', barcodeDataURL ? 'Success' : 'Failed');
+      } catch (barcodeError) {
+        console.warn('Barcode generation failed, continuing without barcode:', barcodeError);
       }
 
     // Header
@@ -333,11 +337,12 @@ const ActivityLogs = () => {
       yPos += 4;
     });
 
-    // Add footers and QR codes to all pages
+    // Add footers and barcodes to all pages
     const totalPages = doc.internal.pages.length - 1;
     const pageHeight = doc.internal.pageSize.getHeight();
     const footerY = pageHeight - 8;
-    const qrSize = 20; // QR code size in mm
+    const barcodeWidth = 45; // barcode width in mm
+    const barcodeHeight = 12; // barcode height in mm
     
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
@@ -348,19 +353,19 @@ const ActivityLogs = () => {
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
       
-      // Add QR code on the left side of footer (first page only)
-      if (i === 1 && qrCodeDataURL) {
+      // Add barcode on the left side of footer (first page only)
+      if (i === 1 && barcodeDataURL) {
         try {
-          doc.addImage(qrCodeDataURL, 'PNG', margin, footerY - qrSize - 2, qrSize, qrSize);
+          doc.addImage(barcodeDataURL, 'PNG', margin, footerY - barcodeHeight - 2, barcodeWidth, barcodeHeight);
           doc.setFontSize(6);
-          doc.text('System Verified', margin + qrSize / 2, footerY - qrSize - 4, { align: 'center' });
+          doc.text('System Verified', margin + barcodeWidth / 2, footerY - barcodeHeight - 4, { align: 'center' });
         } catch (error) {
-          console.error('Error adding QR code to PDF:', error);
+          console.error('Error adding barcode to PDF:', error);
         }
       }
       
-      // Left footer: System name (with space for QR code on first page)
-      const leftMargin = (i === 1 && qrCodeDataURL) ? margin + qrSize + 3 : margin;
+      // Left footer: System name (with space for barcode on first page)
+      const leftMargin = (i === 1 && barcodeDataURL) ? margin + barcodeWidth + 3 : margin;
       doc.text(
         'Class Scheduling System',
         leftMargin,
@@ -393,8 +398,8 @@ const ActivityLogs = () => {
   };
 
   const exportActivityLogsToExcel = async () => {
-    // Generate QR code data for system identification
-    const qrCodeData = generateSystemQRData({
+    // Generate barcode data for system identification
+    const barcodeData = generateSystemBarcodeData({
       reportType: 'Activity Logs Report (Excel)',
       generatedDate: new Date().toISOString(),
       additionalInfo: `Total Activities: ${filteredAlerts.length}`
@@ -443,7 +448,7 @@ const ActivityLogs = () => {
     footerRow1[0] = 'Class Scheduling System';
     footerRow2[0] = `Generated: ${new Date().toLocaleString()}`;
     footerRow3[0] = 'Activity Logs Report';
-    footerRow4[0] = `System QR Code Data: ${qrCodeData}`;
+    footerRow4[0] = `System Barcode Data: ${barcodeData}`;
     
     // Add footer rows to data
     const footer1Ref = XLSX.utils.encode_cell({ r: footerStartRow, c: 0 });
@@ -828,6 +833,41 @@ const ActivityLogs = () => {
                 {filteredAlerts.length} {filteredAlerts.length === 1 ? 'Activity' : 'Activities'}
               </span>
             </div>
+
+            {fetchError && (
+              <div
+                style={{
+                  marginBottom: '12px',
+                  padding: '12px 16px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  color: '#b91c1c',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <span>{fetchError}</span>
+                <button
+                  type="button"
+                  onClick={() => { setFetchError(null); fetchActivityLogs(pagination.page); }}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#0f2c63',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
 
             {/* Scrollable Table Container */}
             <div

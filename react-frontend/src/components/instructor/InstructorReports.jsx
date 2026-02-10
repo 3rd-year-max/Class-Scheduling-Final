@@ -20,7 +20,7 @@ import apiClient from '../../services/apiClient.js';
 import { faCode } from '@fortawesome/free-solid-svg-icons';
 import { io } from 'socket.io-client';
 import { useToast } from '../common/ToastProvider.jsx';
-import { generateSystemQRCode, generateSystemQRData } from '../../utils/qrCodeGenerator.js';
+import { generateSystemBarcode, generateSystemBarcodeData } from '../../utils/barcodeGenerator.js';
 import { generateDocumentId } from '../../services/documentService.js';
 
 const InstructorReports = () => {
@@ -89,7 +89,7 @@ const InstructorReports = () => {
     const reportType = params.get('reportType');
     
     if (documentId && reportType) {
-      showToast('Document loaded from QR code scan', 'success');
+      showToast('Document loaded from barcode scan', 'success');
       // You can add additional handling here if needed
       // For example, pre-fill filters or show a notification
     }
@@ -519,8 +519,8 @@ const InstructorReports = () => {
       // Colors
       const headerColor = [15, 44, 99]; // #0f2c63
 
-      // Generate document ID and QR code for document retrieval
-      let qrCodeDataURL = null;
+      // Generate document ID and barcode for document retrieval
+      let barcodeDataURL = null;
       let documentId = null;
       
       try {
@@ -544,18 +544,18 @@ const InstructorReports = () => {
           console.warn('Document ID generation failed:', docIdResponse.error);
         }
         
-        // Generate QR code (with or without document ID)
-        qrCodeDataURL = await generateSystemQRCode({
-          documentId: documentId, // This can be null, fallback will handle it
+        // Generate barcode (with or without document ID)
+        barcodeDataURL = generateSystemBarcode({
+          documentId: documentId,
           reportType: 'Teaching Schedule Report',
           generatedDate: new Date().toISOString(),
           userInfo: `${instructorData.firstname} ${instructorData.lastname}`,
           additionalInfo: `Department: ${instructorData.department || 'N/A'}`
-        }, 120); // Increased size for better scanning
+        }, 50);
         
-        console.log('Generated QR code:', qrCodeDataURL ? 'Success' : 'Failed');
-      } catch (qrError) {
-        console.warn('QR code generation failed, continuing without QR code:', qrError);
+        console.log('Generated barcode:', barcodeDataURL ? 'Success' : 'Failed');
+      } catch (barcodeError) {
+        console.warn('Barcode generation failed, continuing without barcode:', barcodeError);
       }
 
     // Report Header
@@ -686,11 +686,12 @@ const InstructorReports = () => {
       },
     });
 
-    // Add footers and QR codes to all pages after table is drawn
+    // Add footers and barcodes to all pages after table is drawn
     const totalPages = doc.internal.pages.length - 1;
     const pageHeight = doc.internal.pageSize.getHeight();
     const footerY = pageHeight - 8;
-    const qrSize = 20; // QR code size in mm
+    const barcodeWidth = 45; // barcode width in mm (wide format)
+    const barcodeHeight = 12; // barcode height in mm
     
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
@@ -701,19 +702,19 @@ const InstructorReports = () => {
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
       
-      // Add QR code on the left side of footer (first page only)
-      if (i === 1 && qrCodeDataURL) {
+      // Add barcode on the left side of footer (first page only)
+      if (i === 1 && barcodeDataURL) {
         try {
-          doc.addImage(qrCodeDataURL, 'PNG', margin, footerY - qrSize - 2, qrSize, qrSize);
+          doc.addImage(barcodeDataURL, 'PNG', margin, footerY - barcodeHeight - 2, barcodeWidth, barcodeHeight);
           doc.setFontSize(6);
-          doc.text('System Verified', margin + qrSize / 2, footerY - qrSize - 4, { align: 'center' });
+          doc.text('System Verified', margin + barcodeWidth / 2, footerY - barcodeHeight - 4, { align: 'center' });
         } catch (error) {
-          console.error('Error adding QR code to PDF:', error);
+          console.error('Error adding barcode to PDF:', error);
         }
       }
       
-      // Left footer: System name (with space for QR code on first page)
-      const leftMargin = (i === 1 && qrCodeDataURL) ? margin + qrSize + 3 : margin;
+      // Left footer: System name (with space for barcode on first page)
+      const leftMargin = (i === 1 && barcodeDataURL) ? margin + barcodeWidth + 3 : margin;
       doc.text(
         'Class Scheduling System',
         leftMargin,
@@ -932,8 +933,8 @@ const InstructorReports = () => {
   // Excel Export (matching admin format but filtered to instructor)
   const exportToExcel = async () => {
     try {
-    // Generate QR code data for system identification
-    const qrCodeData = generateSystemQRData({
+    // Generate barcode data for system identification
+    const barcodeData = generateSystemBarcodeData({
       reportType: 'Teaching Schedule Report (Excel)',
       generatedDate: new Date().toISOString(),
       userInfo: `${instructorData.firstname} ${instructorData.lastname}`,
@@ -1510,7 +1511,7 @@ const InstructorReports = () => {
         footerRow1[0] = 'Class Scheduling System';
         footerRow2[0] = `Generated: ${new Date().toLocaleString()}`;
         footerRow3[0] = `Report: ${sheetName} - ${instructorData.firstname} ${instructorData.lastname}`;
-        footerRow4[0] = `System QR Code Data: ${qrCodeData}`;
+        footerRow4[0] = `System Barcode Data: ${barcodeData}`;
         
         // Add footer rows
         const footerStartRow = totalRows;

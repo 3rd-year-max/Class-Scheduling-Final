@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Admin from "../models/Admin.js";
 import Room from '../models/Room.js';
 import Alert from '../models/Alert.js';
@@ -289,6 +290,9 @@ export const cleanupAlerts = async (req, res) => {
 export const deleteAlert = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid alert ID.' });
+    }
     const result = await Alert.findByIdAndDelete(id);
     if (!result) {
       return res.status(404).json({ success: false, message: 'Alert not found' });
@@ -304,6 +308,9 @@ export const deleteAlert = async (req, res) => {
 export const markAlertRead = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid alert ID.' });
+    }
     const alert = await Alert.findByIdAndUpdate(id, { read: true }, { new: true });
     if (!alert) {
       return res.status(404).json({ success: false, message: 'Alert not found' });

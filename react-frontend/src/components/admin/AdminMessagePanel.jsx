@@ -1,46 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const apiBase = process.env.REACT_APP_API_BASE || '';
+
 const AdminMessagePanel = () => {
   const [instructors, setInstructors] = useState([]);
   const [selectedInstructor, setSelectedInstructor] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
+  const [loadingInstructors, setLoadingInstructors] = useState(true);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    // Fetch instructors for dropdown
-    axios.get('/api/instructors')
-      .then(res => setInstructors(res.data))
-      .catch(() => setInstructors([]));
+    const url = apiBase ? `${apiBase}/api/instructors` : '/api/instructors';
+    setLoadingInstructors(true);
+    axios.get(url)
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.instructors || []);
+        setInstructors(list);
+      })
+      .catch(() => setInstructors([]))
+      .finally(() => setLoadingInstructors(false));
   }, []);
 
   const handleSend = async () => {
-    if (!selectedInstructor || !message) {
+    if (!selectedInstructor || !message || !message.trim()) {
       setStatus('Please select an instructor and enter a message.');
       return;
     }
+    setSending(true);
+    setStatus('');
     try {
-      // Replace adminId with actual logged-in admin's ID
-      const adminId = 'admin-id-placeholder';
-      await axios.post('/api/admin-message/send', {
+      const url = apiBase ? `${apiBase}/api/admin-message/send` : '/api/admin-message/send';
+      await axios.post(url, {
         instructorId: selectedInstructor,
-        adminId,
-        message
+        adminId: null,
+        message: message.trim()
       });
       setStatus('Message sent successfully!');
       setMessage('');
     } catch (err) {
-      setStatus('Failed to send message.');
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to send message.';
+      setStatus(msg);
+    } finally {
+      setSending(false);
     }
   };
 
   return (
     <div className="admin-message-panel">
       <h3>Send Message to Instructor</h3>
-      <select value={selectedInstructor} onChange={e => setSelectedInstructor(e.target.value)}>
-        <option value="">Select Instructor</option>
+      <select
+        value={selectedInstructor}
+        onChange={e => setSelectedInstructor(e.target.value)}
+        disabled={loadingInstructors}
+      >
+        <option value="">{loadingInstructors ? 'Loading...' : 'Select Instructor'}</option>
         {instructors.map(inst => (
-          <option key={inst._id} value={inst._id}>{inst.firstname} {inst.lastname}</option>
+          <option key={inst._id || inst.id} value={inst._id || inst.id}>
+            {(inst.firstname || '').trim()} {(inst.lastname || '').trim()} {inst.email ? `(${inst.email})` : ''}
+          </option>
         ))}
       </select>
       <textarea
@@ -50,7 +69,9 @@ const AdminMessagePanel = () => {
         rows={4}
         style={{ width: '100%', marginTop: '10px' }}
       />
-      <button onClick={handleSend} style={{ marginTop: '10px' }}>Send Message</button>
+      <button onClick={handleSend} disabled={sending} style={{ marginTop: '10px' }}>
+        {sending ? 'Sending...' : 'Send Message'}
+      </button>
       {status && <div style={{ marginTop: '10px', color: status.includes('success') ? 'green' : 'red' }}>{status}</div>}
     </div>
   );

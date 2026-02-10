@@ -14,11 +14,11 @@ export const AlertsProvider = ({ children }) => {
     const fetchAlerts = async () => {
       try {
         const res = await axios.get(`${apiBase}/api/admin/alerts`);
-        if (res.data.success) {
-          setAlerts(res.data.alerts);
-        }
+        const list = Array.isArray(res.data?.alerts) ? res.data.alerts : [];
+        setAlerts(list);
       } catch (err) {
         console.error('Failed to load alerts', err);
+        setAlerts([]);
       }
     };
     fetchAlerts();

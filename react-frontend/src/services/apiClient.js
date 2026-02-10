@@ -558,10 +558,10 @@ class ApiClient {
   }
 
   /**
-   * Get activity logs
+   * Get activity logs (paginated)
    */
   async getActivityLogs(params = {}) {
-    return this.get('/api/admin/activity-logs', { params });
+    return this.get('/api/admin/activity', { params });
   }
 
   // ==================== SEARCH API METHODS ====================

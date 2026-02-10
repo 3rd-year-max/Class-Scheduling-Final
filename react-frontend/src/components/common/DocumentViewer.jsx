@@ -90,7 +90,7 @@ const DocumentViewer = () => {
     } finally {
       setLoading(false);
     }
-  }, [documentId, showToast, redirectToReportPage]);
+  }, [documentId, redirectToReportPage]);
 
   useEffect(() => {
     if (documentId) {
@@ -121,7 +121,7 @@ const DocumentViewer = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Processing QR Code</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Processing Barcode</h2>
           <p className="text-gray-600">Loading your document...</p>
         </div>
       </div>
